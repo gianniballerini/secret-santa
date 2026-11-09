@@ -1,23 +1,27 @@
-// Three warm bulbs. Position them at the use site.
-@mixin bulbs {
-  display: flex;
-  gap: 10px;
+// A white tree outline that fills from the bottom up. Position it at the use site (it must be positioned).
+@mixin tree-loader {
+  width: 56px;
+  aspect-ratio: 48 / 60;
+  background: url('../../assets/loader-tree-outline.svg') center / contain no-repeat;
+  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.45));
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: url('../../assets/loader-tree-fill.svg') center / contain no-repeat;
+    animation: tree-fill 1.8s ease-in-out infinite;
+  }
 
   span {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: var(--gold);
-    box-shadow: 0 0 14px 3px rgba(246, 180, 14, 0.55);
-    animation: bulb 1.2s ease-in-out infinite;
-
-    &:nth-child(2) {
-      animation-delay: 0.2s;
-    }
-
-    &:nth-child(3) {
-      animation-delay: 0.4s;
-    }
+    position: absolute;
+    top: calc(100% + var(--space-2));
+    left: 50%;
+    translate: -50% 0;
+    font-family: var(--font-display);
+    font-size: var(--text-lg);
+    line-height: 1;
+    color: var(--white);
   }
 }
 
@@ -118,17 +122,17 @@
     visibility: visible;
   }
 
-  // Three warm bulbs while the jar loads. No text.
+  // The filling tree while the jar loads.
   &__loading {
-    @include bulbs;
+    @include tree-loader;
     position: absolute;
     left: 50%;
-    top: 55%;
-    translate: -50% 0;
+    top: 50%;
+    translate: -50% -50%;
     transition: opacity 300ms;
   }
 
-  // The label is on screen over the canvas, so the bulbs have no business there.
+  // The label is on screen over the canvas, so the loader has no business there.
   &.has-label &__loading {
     visibility: hidden;
   }
@@ -244,11 +248,11 @@
 
   // Appears only if the wait is long enough to notice.
   &__loading {
-    @include bulbs;
+    @include tree-loader;
     position: absolute;
     left: 50%;
-    top: 55%;
-    translate: -50% 0;
+    top: 50%;
+    translate: -50% -50%;
     opacity: 0;
     animation: intro-fade-in 300ms 700ms forwards;
   }
@@ -436,12 +440,19 @@
   }
 }
 
-@keyframes bulb {
-  0%,
-  100% {
-    opacity: 0.25;
-  }
-  50% {
+// Ends on the full tree, which is the resting state under reduced motion.
+@keyframes tree-fill {
+  0% {
+    clip-path: inset(100% 0 0 0);
     opacity: 1;
+  }
+  75%,
+  90% {
+    clip-path: inset(0);
+    opacity: 1;
+  }
+  100% {
+    clip-path: inset(0);
+    opacity: 0;
   }
 }

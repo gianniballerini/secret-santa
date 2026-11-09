@@ -9,7 +9,7 @@ A night-time Argentine Christmas: navy sky, celeste and white bunting, warm stri
 | `--navy-900` / `--navy` / `--dusk` | `#0a1534` / `#10214a` / `#2c3f73` | Night sky |
 | `--celeste` | `#74acdf` | Accent, focus ring, bunting |
 | `--celeste-deep` | `#2e6da4` | Primary buttons, card title (white text passes AA) |
-| `--gold` | `#f6b40e` | Main action, bulbs, ring |
+| `--gold` | `#f6b40e` | Main action, ring |
 | `--green` | `#2f7a3f` | Garland, success |
 | `--red` / `--red-deep` | `#c8352b` / `#a81c1c` | Bow, paper ink, closing line |
 | `--cream` | `#fff6e0` | Cards and the reveal sheet |
