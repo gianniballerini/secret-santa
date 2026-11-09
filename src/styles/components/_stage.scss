@@ -1,4 +1,27 @@
-// Reveal view: a full-viewport stage. The tap hint is its only text.
+// Three warm bulbs. Position them at the use site.
+@mixin bulbs {
+  display: flex;
+  gap: 10px;
+
+  span {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--gold);
+    box-shadow: 0 0 14px 3px rgba(246, 180, 14, 0.55);
+    animation: bulb 1.2s ease-in-out infinite;
+
+    &:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    &:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+  }
+}
+
+// Reveal view: a full-viewport stage, covered at first by the intro slip.
 .reveal {
   position: fixed;
   inset: 0;
@@ -47,7 +70,7 @@
     position: absolute;
     left: 50%;
     // Below the jar, but never past the bottom edge on short screens.
-    top: min(calc(50% + var(--unit) * 1.47), calc(100% - var(--hint-size) * 2 - var(--safe-bottom)));
+    top: min(calc(50% + var(--unit) * 1.62), calc(100% - var(--hint-size) * 2 - var(--safe-bottom)));
     padding: 0.18em 0.7em;
     border-radius: 999px;
     background: var(--gold);
@@ -63,7 +86,7 @@
     animation: hint-pulse 1.4s ease-in-out infinite;
   }
 
-  &.is-ready:not(.is-opening) &__hint {
+  &.show-hint:not(.is-opening) &__hint {
     visibility: visible;
   }
 
@@ -97,30 +120,17 @@
 
   // Three warm bulbs while the jar loads. No text.
   &__loading {
+    @include bulbs;
     position: absolute;
     left: 50%;
     top: 55%;
-    display: flex;
-    gap: 10px;
     translate: -50% 0;
     transition: opacity 300ms;
+  }
 
-    span {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: var(--gold);
-      box-shadow: 0 0 14px 3px rgba(246, 180, 14, 0.55);
-      animation: bulb 1.2s ease-in-out infinite;
-
-      &:nth-child(2) {
-        animation-delay: 0.2s;
-      }
-
-      &:nth-child(3) {
-        animation-delay: 0.4s;
-      }
-    }
+  // The label is on screen over the canvas, so the bulbs have no business there.
+  &.has-label &__loading {
+    visibility: hidden;
   }
 
   &.is-ready &__loading {
@@ -139,6 +149,8 @@
   aspect-ratio: 1 / 1.3;
   display: grid;
   place-items: center;
+  align-content: center;
+  gap: calc(var(--unit) * 0.05);
   padding: 0 calc(var(--unit) * 0.12);
   border-radius: 6px;
   background:
@@ -153,19 +165,250 @@
     transform: translateY(calc(var(--lift) * -1)) rotate(0) scale(1);
   }
 
+  &__lead,
   &__name {
     font-family: var(--font-display);
-    font-size: calc(var(--unit) * 0.46);
     line-height: 1.1;
     text-align: center;
     color: var(--red-deep);
-    overflow-wrap: anywhere;
     opacity: 0;
     transition: opacity 500ms 300ms;
   }
 
+  &__lead {
+    font-size: calc(var(--unit) * 0.15);
+  }
+
+  &__name {
+    font-size: calc(var(--unit) * 0.46);
+    overflow-wrap: anywhere;
+  }
+
+  &.is-open &__lead,
   &.is-open &__name {
     opacity: 1;
+  }
+}
+
+// The intro. With WebGL the facet art fades away to show the jar's 3D back label, the text here is read by screen
+// readers only and just the button stays. Without WebGL (or if the label fails) it is a full-screen slip with the
+// text staggered in, and it slides off to the left to show the jar.
+//   .is-pending  mode not known yet: art and a small loader only
+//   .is-label    3D label shown; `.is-armed` once the button may appear
+//   .is-slip     DOM slip
+.intro {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-5);
+  padding: calc(var(--space-6) + var(--safe-top)) var(--gutter) calc(var(--space-5) + var(--safe-bottom));
+  overflow-y: auto;
+  text-align: center;
+  color: var(--white);
+  box-shadow: 0 0 40px rgba(5, 10, 30, 0.55);
+  transition: transform 650ms cubic-bezier(0.55, 0, 0.85, 0.35);
+
+  // The art has its own layer so it can fade out and leave the 3D label.
+  &::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: var(--navy) url('../../assets/intro-facets.svg') center / cover no-repeat;
+    transition: opacity 500ms var(--ease-out);
+  }
+
+  &.is-label {
+    box-shadow: none;
+
+    &::before {
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+
+  &[hidden] {
+    display: none;
+  }
+
+  &.is-leaving {
+    transform: translateX(-120%) rotate(-8deg);
+    pointer-events: none;
+  }
+
+  // Appears only if the wait is long enough to notice.
+  &__loading {
+    @include bulbs;
+    position: absolute;
+    left: 50%;
+    top: 55%;
+    translate: -50% 0;
+    opacity: 0;
+    animation: intro-fade-in 300ms 700ms forwards;
+  }
+
+  &:not(.is-pending) &__loading {
+    display: none;
+  }
+
+  &.is-pending &__body,
+  &.is-pending &__btn {
+    visibility: hidden;
+  }
+
+  // Takes the free height, so the button stays at the bottom.
+  &__body {
+    flex: 1;
+    width: 100%;
+    max-width: var(--card-max);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: safe center;
+    gap: var(--space-6);
+  }
+
+  &__greeting {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-3);
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: var(--text-2xl);
+    line-height: 1.15;
+  }
+
+  // A piece of paper held on with a strip of tape.
+  &__paper {
+    position: relative;
+    max-width: 100%;
+    background: #fffaf0;
+    box-shadow: 0 8px 20px rgba(5, 10, 30, 0.4);
+    overflow-wrap: anywhere;
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: -11px;
+      left: 50%;
+      width: 84px;
+      height: 24px;
+      translate: -50% 0;
+      rotate: -3deg;
+      background: rgba(246, 180, 14, 0.6);
+      box-shadow: 0 1px 3px rgba(5, 10, 30, 0.25);
+    }
+  }
+
+  // Capitals are set in a slab face; Lobster is a script and does not work in caps.
+  &__name {
+    padding: var(--space-3) var(--space-5) var(--space-2);
+    font-family: var(--font-label);
+    font-size: 0.75em;
+    line-height: 1.1;
+    color: var(--red-deep);
+    text-transform: uppercase;
+    rotate: -2deg;
+  }
+
+  &__warning {
+    margin: 0;
+    padding: var(--space-5) var(--space-4) var(--space-4);
+    font-size: 1.125rem;
+    font-style: italic;
+    color: var(--ink);
+    rotate: 1.5deg;
+
+    strong {
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+  }
+
+  // Sticky, so a long name on a short screen can't push the only way forward out of view.
+  &__btn {
+    position: sticky;
+    bottom: calc(var(--space-3) + var(--safe-bottom));
+    flex-shrink: 0;
+    max-width: var(--card-max);
+    margin-top: auto;
+    transition:
+      transform 120ms var(--ease-out),
+      box-shadow 120ms var(--ease-out),
+      filter 120ms,
+      opacity 450ms var(--ease-out),
+      translate 450ms var(--ease-out);
+  }
+
+  // The label's text takes its time; the button comes last. Hidden (and unfocusable) until then.
+  &.is-label:not(.is-armed) &__btn {
+    opacity: 0;
+    translate: 0 24px;
+    visibility: hidden;
+  }
+
+  // Slip: the same timings as the label's entry.
+  &.is-slip &__hello,
+  &.is-slip &__rest {
+    animation: intro-rise 420ms var(--ease-out) backwards;
+  }
+
+  &.is-slip &__hello {
+    animation-delay: 150ms;
+  }
+
+  &.is-slip &__rest {
+    animation-delay: 700ms;
+  }
+
+  &.is-slip &__name {
+    animation: intro-stamp 520ms var(--ease-pop) 350ms backwards;
+  }
+
+  &.is-slip &__warning {
+    animation: intro-stamp 520ms var(--ease-pop) 1300ms backwards;
+  }
+
+  &.is-slip &__btn {
+    animation: intro-rise 420ms var(--ease-out) 1750ms backwards;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    &.is-slip &__hello,
+    &.is-slip &__rest,
+    &.is-slip &__name,
+    &.is-slip &__warning,
+    &.is-slip &__btn {
+      animation: none;
+    }
+  }
+}
+
+@keyframes intro-fade-in {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes intro-rise {
+  from {
+    opacity: 0;
+    translate: 0 12px;
+  }
+}
+
+@keyframes intro-stamp {
+  from {
+    opacity: 0;
+    scale: 1.35;
   }
 }
 

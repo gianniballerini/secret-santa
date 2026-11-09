@@ -31,7 +31,7 @@ main#app
         button#redraw-btn.btn.btn--secondary.btn--block(type="button") Sorteá de nuevo
 
   //- Reveal ---------------------------------------------------------------
-  //- Only the tap hint is visible until the name is out. The recipient is never in the DOM before the reveal.
+  //- The intro greets the giver on the jar's back label (3D). This slip carries the same copy for screen readers and the no-WebGL fallback. The recipient is never in the DOM before the reveal.
   section#reveal.reveal(hidden)
     p#reveal-live.sr-only(aria-live="polite")
     #stage.stage(role="button" tabindex="0" aria-label="Frasco con papelitos. Tocá para sacar el tuyo." aria-busy="true")
@@ -41,13 +41,23 @@ main#app
         span
         span
       .stage__ring(aria-hidden="true")
-      p.stage__hint(aria-hidden="true") Tocá para ver
+      p.stage__hint(aria-hidden="true") Sacar papelito
       .paper(hidden aria-hidden="true")
+        span.paper__lead Tu amigo invisible es:
         span#paper-name.paper__name
     aside#sheet.sheet(hidden tabindex="-1" aria-labelledby="sheet-title")
       span.sheet__handle(aria-hidden="true")
       h2#sheet-title.sheet__title
       ul#sheet-list.sheet__list
+    #intro.intro
+      .intro__loading(aria-hidden="true")
+        span
+        span
+        span
+      .intro__body
+        h1#intro-greeting.intro__greeting
+        p#intro-warning.intro__paper.intro__warning
+      button#intro-btn.btn.btn--gold.btn--block.intro__btn(type="button")
 
   //- Error ----------------------------------------------------------------
   section#error.screen(hidden)

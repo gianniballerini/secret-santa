@@ -1,0 +1,35 @@
+// Self-hosted so the faces can be preloaded and the canvas label can wait for them.
+// `font-display: block`: the label and slip never flash a fallback face.
+
+@font-face {
+  font-family: 'Lobster';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url('../assets/fonts/lobster-latin-400-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Alfa Slab One';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url('../assets/fonts/alfa-slab-one-latin-400-normal.woff2') format('woff2');
+}
+
+// Variable files: one per style covers every weight in use (400, 600, 700, 800).
+@font-face {
+  font-family: 'Nunito';
+  font-style: normal;
+  font-weight: 200 1000;
+  font-display: block;
+  src: url('../assets/fonts/nunito-latin-wght-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Nunito';
+  font-style: italic;
+  font-weight: 200 1000;
+  font-display: block;
+  src: url('../assets/fonts/nunito-latin-wght-italic.woff2') format('woff2');
+}

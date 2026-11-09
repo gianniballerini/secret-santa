@@ -19,7 +19,9 @@ A night-time Argentine Christmas: navy sky, celeste and white bunting, warm stri
 ## Typography
 
 - Display: Lobster (also used on the 3D note, so the card matches it).
-- Body: Nunito 400/600/700/800.
+- Label: Alfa Slab One (`--font-label`), for the giver's name in capitals on the intro. Lobster is a script and does not work in caps.
+- Body: Nunito 400/600/700/800 (variable files, roman and italic).
+- All faces are self-hosted from `src/assets/fonts/` (`src/styles/_fonts.scss`, `font-display: block`); Lobster, Alfa Slab One and Nunito roman are preloaded in `index.html`.
 - Scale: `--text-xs` 0.8125rem, `--text-sm` 0.9375rem, `--text-base` 1rem, `--text-lg` 1.25rem, `--text-xl` 1.75rem, `--text-2xl` 2.75rem.
 
 ## Layout
@@ -38,7 +40,9 @@ A night-time Argentine Christmas: navy sky, celeste and white bunting, warm stri
 - **Input**: 48px, 2px border, 14px radius, label above, error below with `role="alert"`.
 - **Row**: name on the left, Editar/Quitar on the right. Editing swaps the row for an input with Guardá/Cancelar.
 - **Sheet**: handle, Lobster title, three labelled rows with celeste/gold/green rules, closing line.
-- **Ring and hint**: a gold ripple on the jar and a gold "Tocá para ver" pill below it, the only tap invitation, hidden until the jar is ready and once opening starts.
+- **Intro, back label (WebGL)**: the faceted blue art is the info sticker on the back of the jar, drawn in 3D. Cream ink on navy: kicker, Lobster `Hola,`, the name in Alfa Slab One (long names shrink, then wrap), the greeting, a ruled nutrition-style table, a cream warning panel with deep-red ink, and a barcode footer drawn from the name. Text blocks enter in a stagger (0 to 1550ms), then the one `--gold` button slides up at 1750ms; its tap pulls the camera back while the jar spins to the front. The bottom 13% stays clear for the button. Under `prefers-reduced-motion` everything shows at once and the reveal jumps.
+- **Intro slip (fallback)**: no WebGL, or the label failed. Full-screen faceted blue background with a white Lobster greeting. The name (Alfa Slab One, uppercase) and the italic warning sit on taped paper, staggered in with the same timings, and the `--gold` button stays at the bottom. Slides off to the left to show the jar.
+- **Ring and hint**: a gold ripple on the jar and a gold "Sacar papelito" pill below it, hidden until the jar is ready and once opening starts.
 
 ## Motion
 

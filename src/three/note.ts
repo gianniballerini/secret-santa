@@ -11,6 +11,10 @@ const RELAX = 0.004;
 const TEX_W = 512;
 const TEX_H = Math.round((TEX_W * NOTE_HEIGHT) / NOTE_WIDTH);
 const FONT = '"Lobster", cursive';
+const LEAD_TEXT = 'Tu amigo invisible es:';
+const LEAD_SIZE = 44;
+const LEAD_GAP = 16; // texture px between the lead line and the name
+const LINE_SPACING = 1.15;
 
 export interface Note {
   mesh: Mesh<PlaneGeometry, MeshStandardMaterial>;
@@ -109,9 +113,14 @@ export function createNote(): Note {
       }
       if (line) lines.push(line);
     }
-    const lineHeight = size * 1.15;
-    const top = TEX_H / 2 - ((lines.length - 1) * lineHeight) / 2;
-    lines.forEach((l, i) => ctx.fillText(l, TEX_W / 2, top + i * lineHeight));
+    // Lead line and name are centred on the sheet as one block.
+    const lineHeight = size * LINE_SPACING;
+    const leadHeight = LEAD_SIZE * LINE_SPACING;
+    const top = (TEX_H - leadHeight - LEAD_GAP - lines.length * lineHeight) / 2;
+    const nameTop = top + leadHeight + LEAD_GAP;
+    lines.forEach((l, i) => ctx.fillText(l, TEX_W / 2, nameTop + (i + 0.5) * lineHeight));
+    ctx.font = `${LEAD_SIZE}px ${FONT}`;
+    ctx.fillText(LEAD_TEXT, TEX_W / 2, top + leadHeight / 2, maxWidth);
     texture.needsUpdate = true;
   };
 

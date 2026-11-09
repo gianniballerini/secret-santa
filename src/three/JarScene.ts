@@ -26,6 +26,9 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { createJarGeometry, createGlassMaterial } from './jarGeometry';
+import { createBackLabel, BACK_LABEL } from './jarBackLabel';
+import type { BackLabel, BackLabelContent } from './jarBackLabel';
+import { createJarLabel } from './jarLabel';
 import { createLid, LID_SEAT_Y } from './lidGeometry';
 import { createNote, NOTE_HEIGHT, NOTE_WIDTH } from './note';
 import type { Note } from './note';
@@ -39,7 +42,7 @@ import { createJarPhysics, initPhysics, poseAt } from './physics';
 import type { JarPhysics, Snapshot } from './physics';
 import { stirNote } from './stir';
 import type { Pose } from './stir';
-import { easeInCubic, easeInOutCubic, easeOut, easePop, lerp, linear, tween } from './tween';
+import { clamp01, easeInCubic, easeInOutCubic, easeOut, easePop, lerp, linear, tween } from './tween';
 
 // Note poses in jar space (jar sits on y = 0, centred on the origin).
 const NOTE_TOP = new Vector3(0, 2.75, 0.3);
@@ -62,10 +65,14 @@ const NOTE_DROP = 0.02; // height above the pile top it starts from
 const NOTE_PICK_EULER = new Euler(0.4, -0.8, 0.3);
 
 const STIR_MS = 1400;
+// The lid leaves through the top of the frame. The rise clears the view even on the tallest phones, where the
+// field of view is widest, and the flight stays shorter than the stir that runs alongside it.
+const LID_EXIT_MS = 650;
+const LID_EXIT_RISE = 4;
 const UNFOLD_MS = 1800;
 const DOF_MS = 500;
-const DOF_APERTURE = 0.012; // blur per unit of depth away from the note
-const DOF_MAX_BLUR = 0.012; // cap, as a fraction of the frame
+const DOF_APERTURE = 0.005; // blur per unit of depth away from the note
+const DOF_MAX_BLUR = 0.005; // cap, as a fraction of the frame
 
 const TAU = Math.PI * 2;
 const CAMERA_POS = new Vector3(0, 2.1, 6.2);
@@ -88,6 +95,10 @@ const BASE_FOV = 30;
 const BACKDROP_ASPECT = 390 / 844;
 const BACKDROP_PX: [number, number] = [780, 1688];
 const SHIFT_MS = 700;
+// The pull-back from the back label to the front of the jar. The spin starts a little after the camera.
+const REVEAL_FRONT_MS = 1800;
+const REVEAL_SPIN_DELAY = 0.1; // fraction of the reveal
+const REVEAL_BLEED_FADE = 0.3; // fraction of the reveal over which the art past the sticker fades out
 // Idle invitation: a small wobble every few seconds until the first interaction.
 const NUDGE_FIRST_MS = 3200;
 const NUDGE_EVERY_MS = 5200;
@@ -121,6 +132,13 @@ export class JarScene {
   private composer!: EffectComposer;
   private bokeh!: BokehPass;
   private backdrop: CanvasTexture | null = null;
+  // Back label (the intro): a sticker on the far side of the jar, framed close up until revealFront.
+  private backLabel: BackLabel | null = null;
+  private labelToken = 0; // bumped by every build, reset and dispose, so a stale async build is dropped
+  private presenting = false;
+  private presentYaw = 0; // added to the jar's yaw only; physics never sees it
+  private atClosePose = false; // the camera is parked on the label, so resize() must refit it
+  private closeTarget = new Vector3();
 
   private get bokehUniforms(): Record<string, { value: number }> {
     return this.bokeh.uniforms as Record<string, { value: number }>;
@@ -214,7 +232,7 @@ export class JarScene {
     document.addEventListener('visibilitychange', this.syncLoop);
     this.controls = createJarControls(container, {
       onSpinStart: () => {
-        if (this.opened) return;
+        if (this.opened || this.presenting) return;
         this.interacted = true;
         this.dragging = true;
         this.spinVelocity = 0;
@@ -306,7 +324,9 @@ export class JarScene {
       return mesh;
     });
     this.lid.position.y = LID_SEAT_Y;
-    this.jar.add(...this.slipMeshes, glass, this.lid, this.note.mesh);
+    const label = createJarLabel();
+    this.extras.push(label);
+    this.jar.add(...this.slipMeshes, glass, label.mesh, this.lid, this.note.mesh);
 
     // The folded note lies in the top layer like any other slip, sunk slightly into it.
     const geo = this.note.mesh.geometry;
@@ -393,6 +413,8 @@ export class JarScene {
       ? (2 * Math.atan((Math.tan((BASE_FOV / 2) * (Math.PI / 180)) * MIN_FRAMING_ASPECT) / aspect) * 180) / Math.PI
       : BASE_FOV;
     this.applyFrameShift();
+    // After the projection is current: the label fit depends on the fov and aspect.
+    if (this.atClosePose) this.applyClosePose();
     this.updateBackdropFit();
     if (!this.frame) this.renderOnce();
   }
@@ -477,6 +499,7 @@ export class JarScene {
     this.abort.abort();
     this.abort = new AbortController();
     this.cancelShake();
+    this.clearBackLabel();
     this.opened = false;
     this.spin = 0;
     this.spinVelocity = 0;
@@ -489,6 +512,7 @@ export class JarScene {
     this.shiftAbort.abort();
     this.frameShift = 0;
     this.applyFrameShift();
+    this.atClosePose = false;
     this.camera.position.copy(CAMERA_POS);
     this.camera.lookAt(CAMERA_LOOK);
     this.lid.visible = true;
@@ -503,6 +527,112 @@ export class JarScene {
     this.jar.position.x = 0;
     this.restoreRest();
     this.renderOnce();
+  }
+
+  // Back label ---------------------------------------------------------------------------------
+
+  /** Removes the label and drops any build still in flight. */
+  private clearBackLabel(): void {
+    this.labelToken++;
+    this.backLabel?.dispose();
+    this.backLabel = null;
+    this.presenting = false;
+    this.presentYaw = 0;
+    this.atClosePose = false;
+  }
+
+  /** Camera pose that fits the whole label (contain): phones fill the screen, wide screens show the facets beside it. */
+  private applyClosePose(): void {
+    const t = Math.tan((this.camera.fov * Math.PI) / 360);
+    const distance = Math.max(BACK_LABEL.height / 2 / t, BACK_LABEL.width / 2 / (t * this.camera.aspect));
+    this.camera.position.set(0, BACK_LABEL.centerY, BACK_LABEL.surface + distance);
+    this.closeTarget.set(0, BACK_LABEL.centerY, BACK_LABEL.apothem);
+    this.camera.lookAt(this.closeTarget);
+  }
+
+  private applyJarYaw(): void {
+    // Presenting freezes the idle sway at zero, so this is the whole yaw.
+    this.jar.rotation.y = this.spin + this.presentYaw;
+  }
+
+  /**
+   * The intro: builds the label for this giver (replacing any previous one), turns the jar so it faces the camera
+   * and parks the camera close in front of it. Text blocks start hidden; see `playBackLabelEntry`. Rejects if the
+   * fonts or art fail, leaving the plain jar. Call `reset()` first; a later `reset()` cancels a build in flight.
+   */
+  async showBackLabel(content: BackLabelContent): Promise<void> {
+    const token = ++this.labelToken;
+    this.backLabel?.dispose();
+    this.backLabel = null;
+    const label = await createBackLabel(content, { anisotropy: this.renderer.capabilities.getMaxAnisotropy() });
+    if (token !== this.labelToken) {
+      label.dispose();
+      return;
+    }
+    this.backLabel = label;
+    this.jar.add(label.group);
+    this.presenting = true;
+    this.sway = 0;
+    this.nextNudge = 0;
+    this.presentYaw = -BACK_LABEL.facetAngle;
+    this.applyJarYaw();
+    // Text is the whole point here, so draw it at full resolution until the pull-back.
+    this.setPixelRatio(Math.min(window.devicePixelRatio, MAX_PIXEL_RATIO));
+    this.atClosePose = true;
+    this.applyClosePose();
+    this.resize();
+    if (!this.frame) this.renderOnce();
+  }
+
+  /** Staggered entry of the label's text. Resolves when it is all in. Under reduced motion it shows at once. */
+  async playBackLabelEntry(): Promise<void> {
+    const label = this.backLabel;
+    if (!label) return;
+    if (this.reduced) {
+      label.showAll();
+      if (!this.frame) this.renderOnce();
+      return;
+    }
+    await label.playEntry(this.abort.signal, () => {
+      if (!this.frame) this.renderOnce();
+    });
+  }
+
+  /** Pulls the camera back to the usual framing while the jar spins its front to the camera. Under reduced motion it jumps. */
+  async revealFront(): Promise<void> {
+    if (!this.presenting) return;
+    const signal = this.abort.signal;
+    this.setPixelRatio(this.idlePixelRatio());
+    const finish = () => {
+      this.presenting = false;
+      this.presentYaw = 0;
+      this.atClosePose = false;
+      this.backLabel?.setBleed(0);
+      this.applyJarYaw();
+      this.camera.position.copy(CAMERA_POS);
+      this.camera.lookAt(CAMERA_LOOK);
+      if (!this.frame) this.renderOnce();
+    };
+    if (this.reduced) {
+      finish();
+      return;
+    }
+    // From here the tween owns the camera, so a resize no longer refits it.
+    this.atClosePose = false;
+    const fromPos = this.camera.position.clone();
+    const fromLook = this.closeTarget.clone();
+    const fromYaw = this.presentYaw;
+    const look = new Vector3();
+    const done = await tween(REVEAL_FRONT_MS, linear, (p) => {
+      const e = easeInOutCubic(p);
+      this.camera.position.lerpVectors(fromPos, CAMERA_POS, e);
+      this.camera.lookAt(look.lerpVectors(fromLook, CAMERA_LOOK, e));
+      this.presentYaw = fromYaw * (1 - easeInOutCubic(clamp01((p - REVEAL_SPIN_DELAY) / (1 - REVEAL_SPIN_DELAY))));
+      this.backLabel?.setBleed(1 - clamp01(p / REVEAL_BLEED_FADE));
+      this.applyJarYaw();
+      if (!this.frame) this.renderOnce();
+    }, signal);
+    if (done) finish();
   }
 
   /** Plays unscrew, pull, unfold. Under reduced motion it jumps to the final state. */
@@ -541,10 +671,12 @@ export class JarScene {
 
     // 2. Lid lifts away while an invisible hand swirls the slips and picks the note.
     this.physics?.setLid(false);
-    const lidFly = tween(450, easeInCubic, (v) => {
-      lid.position.set(0.8 * v, LID_SEAT_Y + 0.05 + 2.2 * v, 0);
+    const lidFly = tween(LID_EXIT_MS, easeInCubic, (v) => {
+      lid.position.set(0.8 * v, LID_SEAT_Y + 0.05 + LID_EXIT_RISE * v, 0);
       lid.rotation.z = -0.7 * v;
-    }, signal);
+    }, signal).then((done) => {
+      if (done) lid.visible = false;
+    });
     const stir = tween(STIR_MS, easeInOutCubic, (v) => {
       this.swirl = v < SWIRL_SHARE ? Math.sin((Math.PI * v) / SWIRL_SHARE) : 0;
       stirNote(nm, v, from, this.notePick);
@@ -563,7 +695,6 @@ export class JarScene {
       nm.rotation.set(lerp(0.4, 0, v), lerp(-0.8, 0, v), lerp(0.3, 0, v));
     }, signal);
     if (signal.aborted) return;
-    lid.visible = false;
 
     // 4. Unfocus the jar; the note stays sharp. The scene is about to go still, so the name can afford full resolution.
     this.setPixelRatio(Math.min(window.devicePixelRatio, MAX_PIXEL_RATIO));
@@ -580,7 +711,7 @@ export class JarScene {
 
   /** Wobbles the closed jar and jolts the slips at each peak; physics lets them tumble and settle. */
   shake(strength = 1): void {
-    if (this.opened || this.shaking || this.reduced || !this.physics) return;
+    if (this.opened || this.presenting || this.shaking || this.reduced || !this.physics) return;
     this.shaking = true;
     const signal = this.shakeAbort.signal;
     let peaks = 0;
@@ -637,7 +768,7 @@ export class JarScene {
     const frames = dt / (1000 / 60);
 
     // Idle invitation: a small wobble every few seconds until the first interaction.
-    if (!this.interacted && !this.opened && !this.reduced && this.physics) {
+    if (!this.interacted && !this.opened && !this.presenting && !this.reduced && this.physics) {
       if (!this.nextNudge) this.nextNudge = now + NUDGE_FIRST_MS;
       else if (now >= this.nextNudge) {
         this.nextNudge = now + NUDGE_EVERY_MS;
@@ -661,9 +792,9 @@ export class JarScene {
     const t = now / 1000;
     const wiggleT = (t % 2.5) / 2.5;
     const wiggle = wiggleT > 0.8 ? Math.sin((wiggleT - 0.8) * Math.PI * 10) * 0.05 * (1 - (wiggleT - 0.8) / 0.2) : 0;
-    const idle = !(this.reduced || this.opened || this.dragging || this.shaking || this.spinVelocity);
+    const idle = !(this.reduced || this.opened || this.presenting || this.dragging || this.shaking || this.spinVelocity);
     this.sway += ((idle ? 1 : 0) - this.sway) * (1 - 0.95 ** frames);
-    this.jar.rotation.y = this.spin + this.sway * Math.sin(t * 0.6) * 0.3;
+    this.jar.rotation.y = this.spin + this.presentYaw + this.sway * Math.sin(t * 0.6) * 0.3;
     this.jar.rotation.z = this.sway * wiggle + this.shakeZ;
     this.jar.position.x = this.shakeX;
 
@@ -706,6 +837,7 @@ export class JarScene {
     this.shakeAbort.abort();
     this.shiftAbort.abort();
     this.controlsAbort.abort();
+    this.clearBackLabel();
     cancelAnimationFrame(this.frame);
     this.frame = 0;
     document.removeEventListener('visibilitychange', this.syncLoop);

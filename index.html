@@ -10,12 +10,10 @@
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Lobster&family=Nunito:wght@400;600;700;800&display=swap"
-      rel="stylesheet"
-    />
+    <!-- The faces the intro needs first. The CSS @font-face rules point at the same files, so the hashed build URLs match. -->
+    <link rel="preload" as="font" type="font/woff2" href="/src/assets/fonts/lobster-latin-400-normal.woff2" crossorigin />
+    <link rel="preload" as="font" type="font/woff2" href="/src/assets/fonts/alfa-slab-one-latin-400-normal.woff2" crossorigin />
+    <link rel="preload" as="font" type="font/woff2" href="/src/assets/fonts/nunito-latin-wght-normal.woff2" crossorigin />
   </head>
   <body>
     <!-- pug:src/views/index.pug -->
