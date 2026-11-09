@@ -1,0 +1,69 @@
+// Design tokens. Mirrored in docs/STYLE_GUIDE.md.
+// Palette comes from docs/reference/argentina_christmas.jpeg.
+
+:root {
+  // Night sky
+  --navy-900: #0a1534;
+  --navy: #10214a;
+  --dusk: #2c3f73;
+
+  // Argentine accents
+  --celeste: #74acdf;
+  --celeste-deep: #2e6da4;
+  --white: #ffffff;
+  --gold: #f6b40e;
+  --gold-deep: #c98f00;
+  --green: #2f7a3f;
+  --red: #c8352b;
+  --red-deep: #a81c1c;
+  --wood: #7a4a2b;
+
+  // Surfaces
+  --cream: #fff6e0;
+  --cream-edge: #f0dfb4;
+  --cream-field: #fffbef;
+  --ink: #1d2a4a;
+  --ink-muted: #5a6685;
+  --line: #e6d7ac;
+  --error: #b3261e;
+  --focus: #74acdf;
+
+  // Typography
+  --font-display: 'Lobster', cursive;
+  --font-body: 'Nunito', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+  --text-xs: 0.8125rem;
+  --text-sm: 0.9375rem;
+  --text-base: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.75rem;
+  --text-2xl: 2.75rem;
+
+  // Spacing (4px base)
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --gutter: 20px;
+
+  // Radii
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 28px;
+  --radius-pill: 999px;
+
+  // Shadows
+  --shadow-card: 0 18px 50px rgba(5, 10, 30, 0.45);
+  --shadow-button: 0 3px 0 rgba(16, 33, 74, 0.28);
+
+  // Motion
+  --ease-out: cubic-bezier(0.215, 0.61, 0.355, 1);
+  --ease-pop: cubic-bezier(0, 1.52, 0.295, 0.86);
+
+  // Layout
+  --card-max: 420px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+}

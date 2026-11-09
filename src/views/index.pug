@@ -1,0 +1,56 @@
+main#app
+  //- Organizer ------------------------------------------------------------
+  section#organizer.screen(hidden aria-labelledby="organizer-title")
+    header
+      h1#organizer-title.title Amigo Secreto
+      p.lead Agregá a todos, sorteá una sola vez y mandale a cada persona su enlace privado. No abras los enlaces vos, ¡o arruinás la sorpresa!
+
+    .card
+      h2#add-title.card__title ¿Quién participa?
+      form#add-form.add(novalidate)
+        .field
+          label.field__label(for="name-input") Nombre
+          input#name-input.input(type="text" autocomplete="off" maxlength="40" placeholder="p. ej. María")
+        p#form-error.field__error(role="alert" hidden)
+        button.btn.btn--primary.btn--block(type="submit") Agregá
+
+      ul#participant-list.list(aria-label="Participantes")
+      p#empty-state.muted Todavía no hay nadie. Agregá al menos 3 personas para sortear.
+
+      .actions
+        button#draw-btn.btn.btn--gold.btn--block(type="button" disabled) Sorteá
+        p#draw-hint.muted Agregá al menos 3 personas para sortear.
+
+    section#results.card(hidden aria-labelledby="results-title")
+      h2#results-title.card__title Enlaces privados
+      p.muted Copiá cada enlace y mandáselo a la persona correcta. Si volvés a sortear, tenés que mandar los enlaces nuevos, porque los anteriores ya no coinciden.
+      ul#results-list.list(aria-label="Enlaces privados")
+      .actions
+        button#download-btn.btn.btn--primary.btn--block(type="button") Descargá los enlaces
+        button#redraw-btn.btn.btn--secondary.btn--block(type="button") Sorteá de nuevo
+
+  //- Reveal ---------------------------------------------------------------
+  //- Only the tap hint is visible until the name is out. The recipient is never in the DOM before the reveal.
+  section#reveal.reveal(hidden)
+    p#reveal-live.sr-only(aria-live="polite")
+    #stage.stage(role="button" tabindex="0" aria-label="Frasco con papelitos. Tocá para sacar el tuyo." aria-busy="true")
+      #stage-canvas.stage__canvas
+      .stage__loading(aria-hidden="true")
+        span
+        span
+        span
+      .stage__ring(aria-hidden="true")
+      p.stage__hint(aria-hidden="true") Tocá para ver
+      .paper(hidden aria-hidden="true")
+        span#paper-name.paper__name
+    aside#sheet.sheet(hidden tabindex="-1" aria-labelledby="sheet-title")
+      span.sheet__handle(aria-hidden="true")
+      h2#sheet-title.sheet__title
+      ul#sheet-list.sheet__list
+
+  //- Error ----------------------------------------------------------------
+  section#error.screen(hidden)
+    .card
+      h1.card__title ¡Uy!
+      p Este enlace no parece correcto. Pedile al organizador que te lo mande de nuevo.
+      a.btn.btn--secondary.btn--block(href="#" id="home-link") Volver al inicio

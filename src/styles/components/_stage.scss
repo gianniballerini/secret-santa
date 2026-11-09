@@ -1,0 +1,204 @@
+// Reveal view: a full-viewport stage. The tap hint is its only text.
+.reveal {
+  position: fixed;
+  inset: 0;
+  height: 100dvh;
+  overflow: hidden;
+  // Pixels per world unit at the jar. Matches the camera in JarScene: tall screens frame by width, wide by height.
+  --unit: min(37.6vw, 30.1dvh);
+}
+
+.stage {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+
+  &:focus {
+    outline: none;
+  }
+
+  &:focus-visible {
+    outline: 3px solid var(--celeste);
+    outline-offset: -8px;
+  }
+
+  &.is-done {
+    cursor: default;
+  }
+
+  &__canvas {
+    position: absolute;
+    inset: 0;
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  // The tap invitation below the jar. Taps pass through to the stage. Hidden until the jar is ready and once opening starts.
+  &__hint {
+    --hint-size: min(calc(var(--unit) * 0.28), 3rem);
+    position: absolute;
+    left: 50%;
+    // Below the jar, but never past the bottom edge on short screens.
+    top: min(calc(50% + var(--unit) * 1.47), calc(100% - var(--hint-size) * 2 - var(--safe-bottom)));
+    padding: 0.18em 0.7em;
+    border-radius: 999px;
+    background: var(--gold);
+    color: var(--navy);
+    font-family: var(--font-display);
+    font-size: var(--hint-size);
+    line-height: 1.2;
+    white-space: nowrap;
+    box-shadow: 0 6px 22px rgba(5, 10, 30, 0.55);
+    translate: -50% 0;
+    pointer-events: none;
+    visibility: hidden;
+    animation: hint-pulse 1.4s ease-in-out infinite;
+  }
+
+  &.is-ready:not(.is-opening) &__hint {
+    visibility: visible;
+  }
+
+  // A gold ripple on the jar, paired with the hint. Hidden until the jar is ready and once opening starts.
+  &__ring {
+    position: absolute;
+    left: 50%;
+    top: calc(50% + var(--unit) * 0.5);
+    width: var(--unit);
+    aspect-ratio: 1;
+    translate: -50% -50%;
+    border-radius: 50%;
+    border: 2px solid rgba(246, 180, 14, 0.85);
+    box-shadow:
+      0 0 18px rgba(246, 180, 14, 0.45),
+      inset 0 0 18px rgba(246, 180, 14, 0.25);
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    animation: ring-ripple 2.4s ease-out infinite;
+
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+      opacity: 0.8;
+    }
+  }
+
+  &.is-ready:not(.is-opening) &__ring {
+    visibility: visible;
+  }
+
+  // Three warm bulbs while the jar loads. No text.
+  &__loading {
+    position: absolute;
+    left: 50%;
+    top: 55%;
+    display: flex;
+    gap: 10px;
+    translate: -50% 0;
+    transition: opacity 300ms;
+
+    span {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--gold);
+      box-shadow: 0 0 14px 3px rgba(246, 180, 14, 0.55);
+      animation: bulb 1.2s ease-in-out infinite;
+
+      &:nth-child(2) {
+        animation-delay: 0.2s;
+      }
+
+      &:nth-child(3) {
+        animation-delay: 0.4s;
+      }
+    }
+  }
+
+  &.is-ready &__loading {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+// No-WebGL fallback: a paper note over the CSS backdrop. Folded until the tap.
+.paper {
+  --lift: 0px;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(var(--unit) * 1.7);
+  aspect-ratio: 1 / 1.3;
+  display: grid;
+  place-items: center;
+  padding: 0 calc(var(--unit) * 0.12);
+  border-radius: 6px;
+  background:
+    repeating-linear-gradient(transparent 0 calc(var(--unit) * 0.2), rgba(120, 140, 160, 0.18) calc(var(--unit) * 0.2) calc(var(--unit) * 0.2 + 1px)),
+    #fffaf0;
+  box-shadow: 0 14px 34px rgba(5, 10, 30, 0.5);
+  translate: -50% -50%;
+  transform: rotate(-7deg) scale(0.5);
+  transition: transform 900ms var(--ease-pop);
+
+  &.is-open {
+    transform: translateY(calc(var(--lift) * -1)) rotate(0) scale(1);
+  }
+
+  &__name {
+    font-family: var(--font-display);
+    font-size: calc(var(--unit) * 0.46);
+    line-height: 1.1;
+    text-align: center;
+    color: var(--red-deep);
+    overflow-wrap: anywhere;
+    opacity: 0;
+    transition: opacity 500ms 300ms;
+  }
+
+  &.is-open &__name {
+    opacity: 1;
+  }
+}
+
+@keyframes ring-ripple {
+  0% {
+    scale: 0.6;
+    opacity: 0;
+  }
+  25% {
+    opacity: 0.9;
+  }
+  100% {
+    scale: 1.35;
+    opacity: 0;
+  }
+}
+
+@keyframes hint-pulse {
+  0%,
+  100% {
+    scale: 1;
+  }
+  50% {
+    scale: 1.07;
+  }
+}
+
+@keyframes bulb {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
