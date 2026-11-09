@@ -1,0 +1,134 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  background: var(--navy);
+}
+
+// One night scene behind every view. The reveal view draws the same image in WebGL.
+body {
+  margin: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  color: var(--cream);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: 1.5;
+  overflow-x: hidden;
+
+  // A fixed layer rather than `background-attachment: fixed`, which iOS Safari does not honour.
+  &::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 100lvh;
+    z-index: -1;
+    background: var(--navy) url('../assets/backdrop.svg') center top / cover no-repeat;
+
+    // Wide screens: fit the height and tile sideways, like the WebGL background.
+    @media (min-aspect-ratio: 4 / 5) {
+      background-size: auto 100%;
+      background-repeat: repeat-x;
+    }
+  }
+
+  // The reveal view never scrolls the page.
+  &[data-view='reveal'] {
+    overflow: hidden;
+    height: 100dvh;
+  }
+}
+
+[hidden] {
+  display: none !important;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+a {
+  color: var(--celeste-deep);
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+// Text for screen readers only.
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+// Organizer and error views: a centred column over the backdrop.
+.screen {
+  min-height: 100dvh;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: calc(var(--space-6) + var(--safe-top)) var(--gutter) calc(var(--space-7) + var(--safe-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+#error {
+  justify-content: center;
+}
+
+// The title starts below the garland, lights and bunting in the backdrop (bottom edge at 25% of its height).
+.screen > header {
+  padding-top: max(54vw, 25svh);
+
+  @media (min-aspect-ratio: 4 / 5) {
+    padding-top: 25svh;
+  }
+}
+
+.title {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--text-2xl);
+  line-height: 1.1;
+  text-align: center;
+  color: var(--white);
+  text-shadow: 0 2px 18px rgba(5, 10, 30, 0.6);
+}
+
+.lead {
+  text-align: center;
+  color: #dbe6f7;
+  text-wrap: balance;
+}
+
+.muted {
+  color: var(--ink-muted);
+  font-size: var(--text-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

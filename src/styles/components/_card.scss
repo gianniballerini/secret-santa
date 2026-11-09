@@ -1,0 +1,117 @@
+// Cream paper surface shared by the organizer card and the reveal sheet.
+.card,
+.sheet {
+  background: var(--cream);
+  color: var(--ink);
+  box-shadow: var(--shadow-card);
+}
+
+.card {
+  border-radius: var(--radius-lg);
+  padding: var(--space-5) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+
+  &__title {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: var(--text-xl);
+    line-height: 1.2;
+    color: var(--red-deep);
+  }
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+// Reveal bottom sheet: rises under the opened note, and only then.
+.sheet {
+  position: fixed;
+  z-index: 3;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  max-width: var(--card-max);
+  margin-inline: auto;
+  max-height: 58dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: var(--space-3) var(--space-5) calc(var(--space-5) + var(--safe-bottom));
+  transform: translateY(110%);
+  transition: transform 650ms var(--ease-out);
+
+  &.is-visible {
+    transform: none;
+  }
+
+  &:focus {
+    outline: none;
+  }
+
+  // Desktop: the same centred composition, floating instead of docked.
+  @media (min-width: 600px) {
+    bottom: var(--space-5);
+    border-radius: var(--radius-lg);
+    padding-bottom: var(--space-5);
+    transform: translateY(calc(100% + var(--space-7)));
+  }
+
+  &__handle {
+    display: block;
+    width: 44px;
+    height: 5px;
+    border-radius: var(--radius-pill);
+    background: var(--cream-edge);
+    margin: 0 auto var(--space-4);
+  }
+
+  &__title {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: var(--text-xl);
+    line-height: 1.2;
+    text-align: center;
+    color: var(--celeste-deep);
+  }
+
+  &__list {
+    list-style: none;
+    margin: var(--space-4) 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  &__item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-left: var(--space-3);
+    border-left: 4px solid var(--celeste);
+
+    &:nth-child(2) {
+      border-left-color: var(--gold);
+    }
+
+    &:nth-child(3) {
+      border-left-color: var(--green);
+    }
+  }
+
+  &__text {
+    font-weight: 600;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet {
+    transition-duration: 0.01ms;
+  }
+}
