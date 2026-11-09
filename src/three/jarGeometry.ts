@@ -11,6 +11,9 @@ export const JAR = {
   floorY: 0.14, // thick base: top of the inner floor
 };
 
+// Sides of the faceted jar and lid. Render only: the physics walls keep their own round sweep.
+export const FACET_SIDES = 12;
+
 const smooth = (t: number) => t * t * (3 - 2 * t);
 
 // Two screw-thread bumps along the neck.
@@ -65,7 +68,7 @@ export function createJarGeometry(): LatheGeometry {
   // Inner: back down the neck (starts at the lip), shoulder, wall, floor
   pts.push(...createJarInnerProfile());
 
-  return new LatheGeometry(pts, 96);
+  return new LatheGeometry(pts, FACET_SIDES);
 }
 
 // How much thicker the glass gets at grazing angles (silhouette) than face-on.
@@ -75,6 +78,7 @@ const NIGHT_REFLECTION_STRENGTH = 0.3;
 export function createGlassMaterial(): MeshPhysicalMaterial {
   const material = new MeshPhysicalMaterial({
     color: '#ffffff',
+    flatShading: true,
     transmission: 1,
     roughness: 0, // any roughness blurs the papers behind the glass
     ior: 1.5,

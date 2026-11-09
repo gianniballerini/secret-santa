@@ -30,7 +30,7 @@ A night-time Argentine Christmas: navy sky, celeste and white bunting, warm stri
 
 ## Backdrop
 
-`src/assets/backdrop.svg` has no text. Decoration sits in the top quarter so the jar area stays calm. Its left and right edges match, so wide screens tile it sideways. It is the CSS body background and the WebGL `scene.background`.
+`src/assets/backdrop-portrait.webp` has no text. Decoration sits in the top 12% so the jar area stays calm. It is the CSS body background and the WebGL `scene.background`, where wide screens mirror it sideways. In the CSS, wide screens use `backdrop-wide.webp` instead.
 
 ## Components
 

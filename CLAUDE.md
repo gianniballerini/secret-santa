@@ -16,7 +16,8 @@ Static Vite + Pug + SCSS + TypeScript + three.js site for gift exchanges. No bac
 - `src/ui/organizer.ts`: participants in localStorage (`secret-santa:participants`), 3-person minimum, draw, copy-link rows.
 - `src/ui/reveal.ts`: lazy-loads the jar, owns the reveal flow. `src/ui/themeContent.ts` holds the card copy (the one place to edit it).
 - `src/three/JarScene.ts` is the 3D scene. Public contract: `mount(container)`, `ready`, `reset(name)`, `open()` (resolves when the note is fully shown), `requestMotion()`, `setFrameShift(fraction, animate?)`, `noteClearanceShift(cardFraction)`, `onOpenRequest`, `setPaused()`, `dispose()`. `mount` throws without WebGL; the UI then falls back to a CSS paper note.
-- `src/assets/backdrop.svg` is the night scene, used both as the CSS body background and (rasterised) as the WebGL `scene.background`. It must contain no text. `src/three/table.ts` is the gingham cloth under the jar.
+- `src/assets/backdrop-portrait.webp` is the night scene, used as the CSS body background and the WebGL `scene.background`; `backdrop-wide.webp` replaces it in the CSS on wide screens. They must contain no text. `src/three/table.ts` is the gingham cloth under the jar.
+- The art is low-poly, generated from `docs/reference/favicon-source.jpeg` as the style reference. Raw sources live in `docs/reference/generated/` and are not shipped. The jar and lid are faceted at render level only (`FACET_SIDES`); the physics walls stay round.
 
 ## Product rules
 

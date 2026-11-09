@@ -2,10 +2,11 @@ main#app
   //- Organizer ------------------------------------------------------------
   section#organizer.screen(hidden aria-labelledby="organizer-title")
     header
-      h1#organizer-title.title Amigo Secreto
+      h1#organizer-title.title Amigo invisible
       p.lead Agregá a todos, sorteá una sola vez y mandale a cada persona su enlace privado. No abras los enlaces vos, ¡o arruinás la sorpresa!
 
     .card
+      span.card__art.card__art--gifts(aria-hidden="true")
       h2#add-title.card__title ¿Quién participa?
       form#add-form.add(novalidate)
         .field
@@ -51,6 +52,7 @@ main#app
   //- Error ----------------------------------------------------------------
   section#error.screen(hidden)
     .card
+      span.card__art.card__art--error(aria-hidden="true")
       h1.card__title ¡Uy!
       p Este enlace no parece correcto. Pedile al organizador que te lo mande de nuevo.
       a.btn.btn--secondary.btn--block(href="#" id="home-link") Volver al inicio

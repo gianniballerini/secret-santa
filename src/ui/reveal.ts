@@ -107,7 +107,7 @@ export function showReveal(payload: TokenPayload): void {
     stage.classList.add('is-done');
     setInteractive(false);
     stage.removeAttribute('aria-busy');
-    live.textContent = `Tu amigo secreto es ${payload.r}.`;
+    live.textContent = `Tu amigo invisible es ${payload.r}.`;
     sheet.hidden = false;
     sheet.scrollTop = 0;
     // One frame with the sheet laid out (but still below the screen), so the transition runs.

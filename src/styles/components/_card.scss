@@ -7,6 +7,7 @@
 }
 
 .card {
+  position: relative;
   border-radius: var(--radius-lg);
   padding: var(--space-5) var(--space-4);
   display: flex;
@@ -19,6 +20,28 @@
     font-size: var(--text-xl);
     line-height: 1.2;
     color: var(--red-deep);
+  }
+
+  // Decorative low-poly art.
+  &__art {
+    background: center / contain no-repeat;
+  }
+
+  // Perched on the top edge, taken out of the flow so it never moves the form.
+  &__art--gifts {
+    position: absolute;
+    top: -24px;
+    right: var(--space-2);
+    width: 88px;
+    height: 88px;
+    background-image: url('../../assets/organizer-gifts.webp');
+  }
+
+  &__art--error {
+    align-self: center;
+    width: 160px;
+    height: 116px;
+    background-image: url('../../assets/error-jar.webp');
   }
 }
 
@@ -90,14 +113,32 @@
   }
 
   &__item {
+    position: relative;
     display: flex;
     flex-direction: column;
+    justify-content: center;
     gap: 2px;
-    padding-left: var(--space-3);
+    min-height: 44px;
+    padding-left: calc(var(--space-3) + 52px);
     border-left: 4px solid var(--celeste);
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: var(--space-3);
+      width: 40px;
+      height: 40px;
+      transform: translateY(-50%);
+      background: url('../../assets/icon-private.webp') center / contain no-repeat;
+    }
 
     &:nth-child(2) {
       border-left-color: var(--gold);
+
+      &::before {
+        background-image: url('../../assets/icon-argentina.webp');
+      }
     }
 
     &:nth-child(3) {

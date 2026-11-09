@@ -9,11 +9,11 @@ import {
   Matrix4,
   Mesh,
   MeshBasicMaterial,
+  MirroredRepeatWrapping,
   NeutralToneMapping,
   PerspectiveCamera,
   PlaneGeometry,
   Quaternion,
-  RepeatWrapping,
   Scene,
   SRGBColorSpace,
   Vector3,
@@ -34,7 +34,7 @@ import { createJarControls, requestMotionPermission } from './jarControls';
 import type { JarControls } from './jarControls';
 import { createStudioEnvironment } from './studioEnv';
 import { createTable } from './table';
-import backdropUrl from '../assets/backdrop.svg?url';
+import backdropUrl from '../assets/backdrop-portrait.webp?url';
 import { createJarPhysics, initPhysics, poseAt } from './physics';
 import type { JarPhysics, Snapshot } from './physics';
 import { stirNote } from './stir';
@@ -248,7 +248,7 @@ export class JarScene {
     requestMotionPermission();
   }
 
-  /** Rasterises the SVG backdrop into the scene background. Keeps the navy colour if it cannot load. */
+  /** Draws the backdrop image into the scene background. Keeps the navy colour if it cannot load. */
   private async loadBackdrop(): Promise<void> {
     try {
       const img = new Image();
@@ -260,7 +260,7 @@ export class JarScene {
       canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
       const texture = new CanvasTexture(canvas);
       texture.colorSpace = SRGBColorSpace;
-      texture.wrapS = RepeatWrapping; // wide screens tile the image sideways; its edges match
+      texture.wrapS = MirroredRepeatWrapping; // wide screens repeat the image sideways; mirroring hides the seam
       texture.anisotropy = 4;
       this.backdrop = texture;
       this.scene.background = texture;
@@ -336,7 +336,7 @@ export class JarScene {
     physics.sync(this.bodyMeshes);
 
     // Tablecloth under the jar. It is drawn below the contact shadow (y = 0 against 0.002).
-    const table = createTable();
+    const table = await createTable();
     this.scene.add(table.mesh);
     this.extras.push(table);
 

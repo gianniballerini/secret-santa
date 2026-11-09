@@ -197,7 +197,7 @@ function createToonMatcap(): CanvasTexture {
 
 export function createPaperMaterial(): MeshMatcapMaterial {
   const matcap = createToonMatcap();
-  const material = new MeshMatcapMaterial({ matcap, vertexColors: true, side: DoubleSide });
+  const material = new MeshMatcapMaterial({ matcap, vertexColors: true, flatShading: true, side: DoubleSide });
   material.addEventListener('dispose', () => matcap.dispose());
   return material;
 }
