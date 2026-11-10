@@ -49,7 +49,7 @@ export const themeContent: ThemeContent = {
   title: 'Amigo invisible',
   items: [
     'El link es único por persona, no compartir.',
-    'Este año volvemos a las raíces y la decoración y comida de la Navidad van a ser sobre "Argentina".',
+    'Este año volvemos a las raíces, la decoración y comida van a ser de "🇦🇷 Argentina ⭐️⭐️⭐️".',
   ],
   sound: {
     label: 'Música',
