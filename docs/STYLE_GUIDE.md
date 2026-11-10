@@ -32,7 +32,7 @@ A night-time Argentine Christmas: navy sky, celeste and white bunting, warm stri
 
 ## Backdrop
 
-`src/assets/backdrop-portrait.webp` has no text. Decoration sits in the top 12% so the jar area stays calm. It is the CSS body background and the WebGL `scene.background`, where wide screens mirror it sideways. In the CSS, wide screens use `backdrop-wide.webp` instead.
+`src/assets/images/backdrop-portrait.webp` has no text. Decoration sits in the top 12% so the jar area stays calm. It is the CSS body background and the WebGL `scene.background`, where wide screens mirror it sideways. In the CSS, wide screens use `backdrop-wide.webp` instead.
 
 ## Components
 
@@ -42,6 +42,9 @@ A night-time Argentine Christmas: navy sky, celeste and white bunting, warm stri
 - **Sheet**: handle, Lobster title, three labelled rows with celeste/gold/green rules, closing line.
 - **Intro, back label (WebGL)**: the faceted blue art is the info sticker on the back of the jar, drawn in 3D. Cream ink on navy: kicker, Lobster `Hola,`, the name in Alfa Slab One (long names shrink, then wrap), the greeting, a ruled nutrition-style table, a cream warning panel with deep-red ink, and a barcode footer drawn from the name. Text blocks enter in a stagger (0 to 1550ms), then the one `--gold` button slides up at 1750ms; its tap pulls the camera back while the jar spins to the front. The bottom 13% stays clear for the button. Under `prefers-reduced-motion` everything shows at once and the reveal jumps.
 - **Intro slip (fallback)**: no WebGL, or the label failed. Full-screen faceted blue background with a white Lobster greeting. The name (Alfa Slab One, uppercase) and the italic warning sit on taped paper, staggered in with the same timings, and the `--gold` button stays at the bottom. Slides off to the left to show the jar.
+- **Toolbar buttons**: `#credits` (Lucide `info`) and `#sound` (Lucide `sixteenth-notes`, a slash when muted), 44px navy-glass circles fixed top-right above the intro, safe-area aware. At the radio `#sound` turns gold with an arrow back.
+- **Radio pill**: gold, Lobster "Tocá la radio" over the current track or "Silencio", bottom centre, shown only while the camera is on the boombox. Beside it, `#sound-mute`: a 44px `.icon-btn` (Lucide `volume-2`, `volume-x` when muted) in the same `.sound-dock`. The radio itself thumps with the bass and floats cream notes; both stop under reduced motion.
+- **Credits**: with WebGL a paper (same ink and ruled look as the note) rises from the jar, with a cream caption of links and a celeste "Cerrar" below; without it a paper dialog.
 - **Ring and hint**: a gold ripple on the jar and a gold "Sacar papelito" pill below it, hidden until the jar is ready and once opening starts.
 
 ## Motion

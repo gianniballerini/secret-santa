@@ -1,7 +1,9 @@
 import type { TokenPayload } from '../domain/token';
 import type { BackLabelContent } from '../three/jarBackLabel';
 import type { JarScene } from '../three/JarScene';
+import { music } from '../audio/music';
 import { byId, el } from './dom';
+import { dismissCredits, isSoundBusy, setSceneProvider } from './soundUi';
 import { themeContent } from './themeContent';
 
 // The 3D jar is lazy-loaded so the organizer view never pays for three.js.
@@ -36,6 +38,9 @@ function loadJar(container: HTMLElement): Promise<JarScene | null> {
         throw error;
       }
       scene.onOpenRequest = () => requestOpen?.();
+      scene.onBoomboxTap = () => music.cycle();
+      scene.setMusicLevel(() => music.level());
+      scene.onCreditsDismiss = dismissCredits;
       return scene;
     })
     .catch(() => null); // No WebGL or the chunk failed: use the CSS paper note.
@@ -229,9 +234,14 @@ export function showReveal(payload: TokenPayload): void {
     finish();
   };
 
-  // One entry for tap, Enter and Space. A second request while opening is ignored.
+  // The sound and credits controls may take the jar over once it is on screen and untouched by the intro.
+  setSceneProvider(() =>
+    current === session && mode === 'webgl' && jar && intro.hidden && (phase === 'ready' || phase === 'done') ? jar : null,
+  );
+
+  // One entry for tap, Enter and Space. A second request while opening is ignored, and so is one while the radio or credits are up.
   const request = () => {
-    if (phase !== 'ready') return;
+    if (phase !== 'ready' || isSoundBusy()) return;
     phase = 'opening';
     void open();
   };

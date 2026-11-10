@@ -1,0 +1,303 @@
+// Sound and credits controls: two round buttons top-right, the radio's pill and the credits caption and dialog.
+
+.toolbar {
+  position: fixed;
+  z-index: 20; // above the intro (4) and the sheet (3)
+  top: calc(var(--space-3) + var(--safe-top));
+  right: calc(var(--space-3) + env(safe-area-inset-right, 0px));
+  display: flex;
+  gap: var(--space-2);
+}
+
+.icon-btn {
+  appearance: none;
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 50%;
+  background: rgba(16, 33, 74, 0.72);
+  color: var(--white);
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(5, 10, 30, 0.45);
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform 120ms var(--ease-out),
+    background 120ms;
+
+  &:active {
+    transform: scale(0.94);
+  }
+
+  &[aria-expanded='true'] {
+    background: var(--celeste-deep);
+  }
+
+  // A track is buffering: a gold ring spins around the button.
+  &[data-loading]::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border: 2px solid transparent;
+    border-top-color: var(--gold);
+    border-right-color: var(--gold);
+    border-radius: 50%;
+    animation: sound-spin 0.8s linear infinite;
+    pointer-events: none;
+  }
+
+  &__back {
+    display: none;
+  }
+
+  // Muted: a slash over the notes.
+  &#sound[aria-pressed='false']::after {
+    content: '';
+    position: absolute;
+    width: 26px;
+    height: 2px;
+    border-radius: 2px;
+    background: currentColor;
+    rotate: -45deg;
+    box-shadow: 0 0 0 2px rgba(16, 33, 74, 0.9);
+  }
+
+  &#sound[aria-pressed='false'] {
+    color: rgba(255, 255, 255, 0.75);
+  }
+}
+
+// The radio's mute button: the speaker shows what is on now; the icon flips with the state.
+.icon-btn--mute {
+  .icon-btn__off {
+    display: none;
+  }
+
+  &[aria-pressed='true'] {
+    color: rgba(255, 255, 255, 0.75);
+
+    .icon-btn__on {
+      display: none;
+    }
+
+    .icon-btn__off {
+      display: block;
+    }
+  }
+}
+
+// At the radio the sound button becomes the way back.
+body[data-sound-focus] #sound {
+  background: var(--gold);
+  color: var(--navy);
+  border-color: transparent;
+
+  .icon-btn__music {
+    display: none;
+  }
+
+  .icon-btn__back {
+    display: block;
+  }
+}
+
+// The sheet makes way for the radio and the credits paper.
+body[data-sound-focus] .sheet,
+body[data-credits] .sheet {
+  transform: translateY(calc(100% + var(--space-7)));
+}
+
+// The jar's invitations have no business while the camera is elsewhere.
+body[data-sound-focus] .stage__hint,
+body[data-sound-focus] .stage__ring,
+body[data-credits] .stage__hint,
+body[data-credits] .stage__ring {
+  visibility: hidden !important;
+}
+
+// The radio's controls: the gold pill and the mute button side by side, bottom centre.
+.sound-dock {
+  position: fixed;
+  z-index: 5;
+  left: 50%;
+  bottom: calc(var(--space-5) + var(--safe-bottom));
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  translate: -50% 12px;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 250ms var(--ease-out),
+    translate 250ms var(--ease-out),
+    visibility 0s 250ms;
+}
+
+// In the style of the jar hint. The pill is also the keyboard way to change the track.
+.sound-pill {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.2em 1.1em 0.3em;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--gold);
+  color: var(--navy);
+  cursor: pointer;
+  box-shadow: 0 6px 22px rgba(5, 10, 30, 0.55);
+  -webkit-tap-highlight-color: transparent;
+
+  &__lead {
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  &__track {
+    font-weight: 800;
+    font-size: var(--text-sm);
+    line-height: 1.2;
+  }
+
+  // Buffering: a small spinner before the "Cargando…" text.
+  &[aria-busy='true'] &__track::before {
+    content: '';
+    display: inline-block;
+    width: 0.8em;
+    height: 0.8em;
+    margin-right: 0.4em;
+    vertical-align: -0.1em;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: sound-spin 0.8s linear infinite;
+  }
+}
+
+@keyframes sound-spin {
+  to {
+    rotate: 1turn;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .icon-btn[data-loading]::after,
+  .sound-pill[aria-busy='true'] .sound-pill__track::before {
+    animation-duration: 2.4s; // still a cue that it is busy, just slower
+  }
+}
+
+body[data-sound-focus] .sound-dock {
+  opacity: 1;
+  visibility: visible;
+  translate: -50% 0;
+  transition-delay: 800ms, 800ms, 0s; // after the camera has arrived
+}
+
+// Credits: caption under the 3D paper (the real links) and the paper dialog.
+.credits-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+  font-weight: 700;
+
+  a {
+    display: inline-block;
+    padding: var(--space-1) 0;
+    color: var(--celeste-deep);
+  }
+}
+
+.credits-close {
+  appearance: none;
+  min-height: 44px;
+  padding: 0 var(--space-5);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--celeste-deep);
+  color: var(--white);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: var(--shadow-button);
+}
+
+.credits-caption {
+  position: fixed;
+  z-index: 5;
+  left: 50%;
+  bottom: calc(var(--space-4) + var(--safe-bottom));
+  width: calc(100% - var(--gutter) * 2);
+  max-width: var(--card-max);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--cream);
+  box-shadow: var(--shadow-card);
+  translate: -50% 0;
+  animation: credits-in 450ms var(--ease-out) 1300ms backwards;
+}
+
+// The same paper look as the note and the fallback slip.
+.credits-dialog {
+  max-width: min(92vw, var(--card-max));
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+
+  &::backdrop {
+    background: rgba(5, 10, 30, 0.66);
+  }
+
+  &__paper {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    padding: var(--space-5);
+    border-radius: 6px;
+    background:
+      repeating-linear-gradient(transparent 0 33px, rgba(120, 140, 160, 0.18) 33px 34px),
+      #fffaf0;
+    box-shadow: 0 14px 34px rgba(5, 10, 30, 0.5);
+    align-items: center;
+    text-align: center;
+  }
+
+  &__title {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: var(--text-xl);
+    line-height: 1.2;
+    color: var(--red-deep);
+  }
+
+  &__items {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+}
+
+@keyframes credits-in {
+  from {
+    opacity: 0;
+    translate: -50% 16px;
+  }
+}

@@ -19,6 +19,15 @@ export interface ThemeContent {
   };
   title: string;
   items: string[];
+  /** Sound control (top-right button, the radio's pill) and the credits paper. Credits also live in docs/CREDITS.md. */
+  sound: { label: string; back: string; tapRadio: string; silence: string; mute: string; unmute: string; announceOn: string; announceOff: string; loading: string };
+  credits: {
+    button: string;
+    title: string;
+    items: Array<{ label: string; text: string }>;
+    links: Array<{ text: string; href: string }>;
+    close: string;
+  };
 }
 
 export const themeContent: ThemeContent = {
@@ -42,4 +51,32 @@ export const themeContent: ThemeContent = {
     'El link es único por persona, no compartir.',
     'Este año volvemos a las raíces y la decoración y comida de la Navidad van a ser sobre "Argentina".',
   ],
+  sound: {
+    label: 'Música',
+    back: 'Volver',
+    tapRadio: 'Tocá la radio',
+    silence: 'Silencio',
+    mute: 'Silenciar',
+    unmute: 'Activar sonido',
+    loading: 'Cargando…',
+    announceOn: 'Música',
+    announceOff: 'Música apagada',
+  },
+  credits: {
+    button: 'Créditos',
+    title: 'Créditos',
+    items: [
+      { label: 'Música', text: 'generada con Suno.' },
+      { label: 'Radio 3D', text: '«1980s Boombox» de Jen S Abbott, licencia CC BY 4.0.' },
+      { label: 'Íconos', text: 'Lucide (licencia ISC).' },
+    ],
+    links: [
+      { text: 'Suno', href: 'https://suno.com' },
+      { text: 'Modelo 3D', href: 'https://sketchfab.com/3d-models/1980s-boombox-f19736661f354cada1b18c8a358f9703' },
+      { text: 'Jen S Abbott', href: 'https://sketchfab.com/jsabbott' },
+      { text: 'CC BY 4.0', href: 'http://creativecommons.org/licenses/by/4.0/' },
+      { text: 'Lucide', href: 'https://lucide.dev' },
+    ],
+    close: 'Cerrar',
+  },
 };

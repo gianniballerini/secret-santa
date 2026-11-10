@@ -15,10 +15,15 @@ const LEAD_TEXT = 'Tu amigo invisible es:';
 const LEAD_SIZE = 44;
 const LEAD_GAP = 16; // texture px between the lead line and the name
 const LINE_SPACING = 1.15;
+const BODY_FONT = '"Nunito", system-ui, sans-serif';
+const BODY_SIZE = 30;
+const TITLE_SIZE = 78;
 
 export interface Note {
   mesh: Mesh<PlaneGeometry, MeshStandardMaterial>;
   setName(name: string): void;
+  /** A paper with a Lobster title and wrapped body lines (the credits). Same paper look as the name. */
+  setLines(title: string, lines: string[]): void;
   /** 1 = folded slip, 0 = flat. Animating this is the unfold. */
   setCrumple(amount: number): void;
   dispose(): void;
@@ -73,9 +78,7 @@ export function createNote(): Note {
   };
   setCrumple(1);
 
-  let current = '';
-  const draw = () => {
-    const ctx = canvas.getContext('2d')!;
+  const paintPaper = (ctx: CanvasRenderingContext2D) => {
     ctx.fillStyle = '#fffaf0';
     ctx.fillRect(0, 0, TEX_W, TEX_H);
     // Faint ruled lines so it reads as paper.
@@ -87,6 +90,12 @@ export function createNote(): Note {
       ctx.lineTo(TEX_W - 24, y);
       ctx.stroke();
     }
+  };
+
+  let current = '';
+  const draw = () => {
+    const ctx = canvas.getContext('2d')!;
+    paintPaper(ctx);
     ctx.fillStyle = '#a81c1c';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -124,8 +133,54 @@ export function createNote(): Note {
     texture.needsUpdate = true;
   };
 
+  const wrap = (ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] => {
+    const out: string[] = [];
+    let line = '';
+    for (const word of text.split(/\s+/)) {
+      const next = line ? `${line} ${word}` : word;
+      if (line && ctx.measureText(next).width > maxWidth) {
+        out.push(line);
+        line = word;
+      } else line = next;
+    }
+    if (line) out.push(line);
+    return out;
+  };
+
+  const drawLines = (title: string, body: string[]) => {
+    const ctx = canvas.getContext('2d')!;
+    paintPaper(ctx);
+    ctx.fillStyle = '#a81c1c';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const maxWidth = TEX_W - 80;
+    ctx.font = `700 ${BODY_SIZE}px ${BODY_FONT}`;
+    const wrapped = body.map((text) => wrap(ctx, text, maxWidth));
+    const bodyHeight = wrapped.reduce((sum, lines) => sum + lines.length * BODY_SIZE * LINE_SPACING, 0) + (wrapped.length - 1) * LEAD_GAP;
+    const titleHeight = TITLE_SIZE * LINE_SPACING;
+    let y = (TEX_H - titleHeight - LEAD_GAP * 2 - bodyHeight) / 2;
+    ctx.font = `${TITLE_SIZE}px ${FONT}`;
+    ctx.fillText(title, TEX_W / 2, y + titleHeight / 2, maxWidth);
+    y += titleHeight + LEAD_GAP * 2;
+    ctx.fillStyle = '#1d2a4a';
+    ctx.font = `700 ${BODY_SIZE}px ${BODY_FONT}`;
+    for (const lines of wrapped) {
+      for (const l of lines) {
+        ctx.fillText(l, TEX_W / 2, y + (BODY_SIZE * LINE_SPACING) / 2);
+        y += BODY_SIZE * LINE_SPACING;
+      }
+      y += LEAD_GAP;
+    }
+    texture.needsUpdate = true;
+  };
+
   return {
     mesh,
+    setLines(title, body) {
+      drawLines(title, body);
+      // Both faces may still be loading; redraw once they are ready.
+      void Promise.all([document.fonts?.load(`${TITLE_SIZE}px ${FONT}`), document.fonts?.load(`700 ${BODY_SIZE}px ${BODY_FONT}`)]).then(() => drawLines(title, body));
+    },
     setName(name) {
       current = name;
       draw();

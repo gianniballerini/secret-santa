@@ -34,14 +34,14 @@
     right: var(--space-2);
     width: 88px;
     height: 88px;
-    background-image: url('../../assets/organizer-gifts.webp');
+    background-image: url('../../assets/images/organizer-gifts.webp');
   }
 
   &__art--error {
     align-self: center;
     width: 160px;
     height: 116px;
-    background-image: url('../../assets/error-jar.webp');
+    background-image: url('../../assets/images/error-jar.webp');
   }
 }
 
@@ -130,14 +130,14 @@
       width: 40px;
       height: 40px;
       transform: translateY(-50%);
-      background: url('../../assets/icon-private.webp') center / contain no-repeat;
+      background: url('../../assets/images/icon-private.webp') center / contain no-repeat;
     }
 
     &:nth-child(2) {
       border-left-color: var(--gold);
 
       &::before {
-        background-image: url('../../assets/icon-argentina.webp');
+        background-image: url('../../assets/images/icon-argentina.webp');
       }
     }
 

@@ -5,7 +5,8 @@ export interface JarControlHandlers {
   onSpinStart(): void;
   onSpin(delta: number): void;
   onSpinEnd(velocity: number): void;
-  onTap(): void;
+  /** Client coordinates of the tap, so the scene can tell what was hit. */
+  onTap(clientX: number, clientY: number): void;
   onShake(): void;
   /** x and y in -1..1: pointer position on desktop, device tilt on phones. */
   onTilt(x: number, y: number): void;
@@ -92,7 +93,7 @@ export function createJarControls(target: HTMLElement, h: JarControlHandlers, si
       h.onSpinEnd(e.timeStamp - lastTime > 80 ? 0 : velocity);
     } else if (!cancelled && e.timeStamp - startTime < TAP_MS) {
       requestMotionPermission();
-      h.onTap();
+      h.onTap(e.clientX, e.clientY);
     }
     dragging = false;
   };

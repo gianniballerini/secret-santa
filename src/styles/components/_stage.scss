@@ -2,14 +2,14 @@
 @mixin tree-loader {
   width: 56px;
   aspect-ratio: 48 / 60;
-  background: url('../../assets/loader-tree-outline.svg') center / contain no-repeat;
+  background: url('../../assets/images/loader-tree-outline.svg') center / contain no-repeat;
   filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.45));
 
   &::after {
     content: '';
     position: absolute;
     inset: 0;
-    background: url('../../assets/loader-tree-fill.svg') center / contain no-repeat;
+    background: url('../../assets/images/loader-tree-fill.svg') center / contain no-repeat;
     animation: tree-fill 1.8s ease-in-out infinite;
   }
 
@@ -221,7 +221,7 @@
     position: fixed;
     inset: 0;
     z-index: -1;
-    background: var(--navy) url('../../assets/intro-facets.svg') center / cover no-repeat;
+    background: var(--navy) url('../../assets/images/intro-facets.svg') center / cover no-repeat;
     transition: opacity 500ms var(--ease-out);
   }
 

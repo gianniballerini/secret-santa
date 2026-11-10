@@ -1,8 +1,10 @@
 import './styles/main.scss';
 import { decodeToken } from './domain/token';
+import { initMusic } from './audio/music';
 import { byId } from './ui/dom';
 import { initOrganizer } from './ui/organizer';
 import { showReveal } from './ui/reveal';
+import { initSoundUi } from './ui/soundUi';
 
 type View = 'organizer' | 'reveal' | 'error';
 
@@ -30,5 +32,7 @@ function route(): void {
 }
 
 initOrganizer();
+initMusic();
+initSoundUi();
 window.addEventListener('hashchange', route);
 route();

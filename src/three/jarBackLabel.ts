@@ -10,7 +10,7 @@ import {
   PlaneGeometry,
   SRGBColorSpace,
 } from 'three';
-import artUrl from '../assets/intro-facets.svg?url';
+import artUrl from '../assets/images/intro-facets.svg?url';
 import { FACET_SIDES, JAR } from './jarGeometry';
 import { clamp01, easeOut, easePop, lerp, linear, tween } from './tween';
 

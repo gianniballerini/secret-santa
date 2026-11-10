@@ -43,6 +43,25 @@ main#app
       .paper(hidden aria-hidden="true")
         span.paper__lead Tu amigo invisible es:
         span#paper-name.paper__name
+    //- Sound control while the camera is on the radio: the pill is its keyboard and touch twin. Outside #stage, which is inert during the intro.
+    .sound-dock
+      button#sound-pill.sound-pill(type="button")
+        span#sound-pill-lead.sound-pill__lead
+        span#sound-pill-track.sound-pill__track
+      //- Lucide volume-2 / volume-x (ISC).
+      button#sound-mute.icon-btn.icon-btn--mute(type="button" data-sound-control aria-pressed="false")
+        svg.icon-btn__on(xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false")
+          path(d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z")
+          path(d="M16 9a5 5 0 0 1 0 6")
+          path(d="M19.364 18.364a9 9 0 0 0 0-12.728")
+        svg.icon-btn__off(xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false")
+          path(d="M11 4.702a.7.7 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.7.7 0 0 0 11 19.298z")
+          path(d="m16.5 14.5 5-5")
+          path(d="m16.5 9.5 5 5")
+    //- Credits while the paper is up in 3D: canvas text can't hold links, so they live here.
+    #credits-caption.credits-caption(hidden role="group" aria-label="Créditos")
+      ul#credits-caption-links.credits-links
+      button#credits-caption-close.credits-close(type="button")
     aside#sheet.sheet(hidden tabindex="-1" aria-labelledby="sheet-title")
       span.sheet__handle(aria-hidden="true")
       h2#sheet-title.sheet__title
@@ -62,3 +81,28 @@ main#app
       h1.card__title ¡Uy!
       p Este enlace no parece correcto. Pedile al organizador que te lo mande de nuevo.
       a.btn.btn--secondary.btn--block(href="#" id="home-link") Volver al inicio
+
+//- Top-right controls, above every view and the intro. Lucide icons (ISC), see docs/CREDITS.md.
+.toolbar
+  button#credits.icon-btn(type="button" aria-haspopup="dialog" aria-expanded="false")
+    svg(xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false")
+      circle(cx="12" cy="12" r="10")
+      path(d="M12 16v-4")
+      path(d="M12 8h.01")
+  button#sound.icon-btn(type="button" data-sound-control aria-pressed="false")
+    svg.icon-btn__music(xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false")
+      path(d="M21 16V3a1 1 0 0 0-1.28-.96l-10 2.917a1 1 0 0 0-.72.96V19")
+      path(d="M21 6 9 9.5")
+      circle(cx="18" cy="16" r="3")
+      circle(cx="6" cy="19" r="3")
+    svg.icon-btn__back(xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false")
+      path(d="m12 19-7-7 7-7")
+      path(d="M19 12H5")
+
+//- Credits as a paper when the 3D one is not available (organizer, error, intro, loading, no WebGL).
+dialog#credits-dialog.credits-dialog(aria-labelledby="credits-dialog-title")
+  .credits-dialog__paper
+    h2#credits-dialog-title.credits-dialog__title
+    ul#credits-dialog-items.credits-dialog__items
+    ul#credits-dialog-links.credits-links
+    button#credits-dialog-close.credits-close(type="button")

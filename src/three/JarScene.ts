@@ -14,8 +14,10 @@ import {
   PerspectiveCamera,
   PlaneGeometry,
   Quaternion,
+  Raycaster,
   Scene,
   SRGBColorSpace,
+  Vector2,
   Vector3,
   WebGLRenderer,
   WebGLRenderTarget,
@@ -26,6 +28,8 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { createJarGeometry, createGlassMaterial } from './jarGeometry';
+import { createBoombox } from './boombox';
+import type { Boombox } from './boombox';
 import { createBackLabel, BACK_LABEL } from './jarBackLabel';
 import type { BackLabel, BackLabelContent } from './jarBackLabel';
 import { createJarLabel } from './jarLabel';
@@ -37,7 +41,7 @@ import { createJarControls, requestMotionPermission } from './jarControls';
 import type { JarControls } from './jarControls';
 import { createStudioEnvironment } from './studioEnv';
 import { createTable } from './table';
-import backdropUrl from '../assets/backdrop-portrait.webp?url';
+import backdropUrl from '../assets/images/backdrop-portrait.webp?url';
 import { createJarPhysics, initPhysics, poseAt } from './physics';
 import type { JarPhysics, Snapshot } from './physics';
 import { stirNote } from './stir';
@@ -86,6 +90,10 @@ const SETTLE_STEPS = 120; // physics steps that let the note sink into the pile 
 const PARALLAX_CAMERA: [number, number] = [0.25, 0.15];
 // Radians of pivot. The camera drifts the same way, which cancels part of it, so these must clearly exceed it.
 const PARALLAX_NOTE: [number, number] = [0.45, 0.3];
+// Radians the jar leans at full input (mouse or gyro) while the back label is up. The jar turns on its own axis, so
+// the label slides as it leans: more than this clips the text at the screen edges and pushes the barcode into the button.
+const LABEL_TILT_YAW = 0.02;
+const LABEL_TILT_PITCH = 0.015;
 
 // Night navy, used when the backdrop image cannot be rasterised.
 const FALLBACK_BACKGROUND = 0x10214a;
@@ -103,6 +111,17 @@ const REVEAL_BLEED_FADE = 0.3; // fraction of the reveal over which the art past
 const NUDGE_FIRST_MS = 3200;
 const NUDGE_EVERY_MS = 5200;
 const NUDGE_STRENGTH = 0.35;
+// Camera flights to the boombox and back.
+const FOCUS_MS = 1100;
+// The credits paper: it rises out of the jar mouth, then unfolds and glides to the front like the note. An opened name note
+// takes turns with it: it folds back into the jar first, and returns when the credits go.
+const CREDITS_START = new Vector3(0, 1.75, 0.1);
+const CREDITS_LID_MS = 240;
+const CREDITS_RISE_MS = 450;
+const CREDITS_GLIDE_MS = 1400;
+const CREDITS_LEAVE_MS = 600;
+const CREDITS_DROP_MS = 350;
+const LID_TIP = { x: 0.85, y: 0.3, roll: -0.5 }; // pushed aside, clear of the mouth
 // Screen margins (NDC units, 2 = full height) kept around the note when it makes room for the card.
 const NOTE_TOP_MARGIN = 0.1;
 const NOTE_CARD_MARGIN = 0.08;
@@ -137,8 +156,29 @@ export class JarScene {
   private labelToken = 0; // bumped by every build, reset and dispose, so a stale async build is dropped
   private presenting = false;
   private presentYaw = 0; // added to the jar's yaw only; physics never sees it
+  private labelTiltActive = false; // the jar leans with the mouse or gyro; physics never sees it
+  private labelTilt = { x: 0, y: 0 };
   private atClosePose = false; // the camera is parked on the label, so resize() must refit it
   private closeTarget = new Vector3();
+  // Boombox: the sound control. The camera flies to it and taps on it change the music.
+  private boombox: Boombox | null = null;
+  private disposed = false;
+  private soundFocus = false; // the camera is at (or flying to or from) the boombox: no parallax, no jar taps
+  private lookNow = CAMERA_LOOK.clone(); // where the camera looks while a flight owns it
+  private flightAbort = new AbortController();
+  private raycaster = new Raycaster();
+  // Credits paper: a second, non-physics note.
+  private creditsNote: Note | null = null;
+  private creditsOpen = false; // showing or on its way in
+  private leanEuler = new Euler();
+  private focusPoint = new Vector3();
+  private noteSwap = false; // the name note is out of its open pose for the credits: parallax leaves its rotation alone
+  private musicLevel: (() => number) | null = null;
+  private creditsSettled = false; // at the front pose, so parallax applies
+  private creditsAbort = new AbortController();
+  private lidTip = 0; // 0 = seated, 1 = pushed aside for the credits paper
+  private flying = false;
+  private dofBefore = 0;
 
   private get bokehUniforms(): Record<string, { value: number }> {
     return this.bokeh.uniforms as Record<string, { value: number }>;
@@ -173,11 +213,22 @@ export class JarScene {
   // Frame shift: how far (fraction of the view height) the picture is moved up to make room for the card.
   private frameShift = 0;
   private shiftAbort = new AbortController();
+  private shiftWanted = 0; // what the UI last asked for
+  private shiftHold: number | null = null;
   // Idle invitation state.
   private interacted = false;
   private nextNudge = 0;
   /** Called when the visitor asks to open the jar (tap or keyboard). The caller owns any double-fire guard. */
   onOpenRequest: (() => void) | null = null;
+  /** Where the radio gets the beat (0..1) each frame; this file knows nothing about audio. `null` stops it. */
+  setMusicLevel(source: (() => number) | null): void {
+    this.musicLevel = source;
+  }
+
+  /** Called when the boombox is tapped while the camera is on it. */
+  onBoomboxTap: (() => void) | null = null;
+  /** Called when a tap lands while the credits paper is up, so the UI can close it. */
+  onCreditsDismiss: (() => void) | null = null;
   private extras: Array<{ dispose(): void }> = [];
   /** Resolves once physics and the paper pile are built. */
   ready: Promise<void> = Promise.resolve();
@@ -232,7 +283,7 @@ export class JarScene {
     document.addEventListener('visibilitychange', this.syncLoop);
     this.controls = createJarControls(container, {
       onSpinStart: () => {
-        if (this.opened || this.presenting) return;
+        if (this.opened || this.presenting || this.soundFocus || this.creditsOpen) return;
         this.interacted = true;
         this.dragging = true;
         this.spinVelocity = 0;
@@ -245,7 +296,18 @@ export class JarScene {
         this.dragging = false;
         this.spinVelocity = this.reduced ? 0 : velocity;
       },
-      onTap: () => {
+      onTap: (x, y) => {
+        if (this.creditsOpen) {
+          this.onCreditsDismiss?.();
+          return;
+        }
+        if (this.soundFocus) {
+          if (this.boombox && this.pickBoombox(x, y)) {
+            this.boombox.press(() => !this.frame && this.renderOnce());
+            this.onBoomboxTap?.();
+          }
+          return;
+        }
         this.interacted = true;
         this.onOpenRequest?.();
       },
@@ -378,6 +440,18 @@ export class JarScene {
     shadow.position.y = 0.002;
     this.scene.add(shadow);
     this.extras.push(shadowTex);
+
+    // The radio loads in the background: the jar is ready without it. If it fails, the sound button only mutes.
+    void createBoombox().then((boombox) => {
+      if (this.disposed) {
+        boombox.dispose();
+        return;
+      }
+      this.boombox = boombox;
+      this.scene.add(boombox.group);
+      this.extras.push(boombox);
+      if (!this.frame) this.renderOnce();
+    }).catch(() => {});
   }
 
   // Slips, note and lid back on their rest poses, whatever the physics did.
@@ -415,6 +489,7 @@ export class JarScene {
     this.applyFrameShift();
     // After the projection is current: the label fit depends on the fov and aspect.
     if (this.atClosePose) this.applyClosePose();
+    if (this.soundFocus && !this.flying) this.applyFocusPose();
     this.updateBackdropFit();
     if (!this.frame) this.renderOnce();
   }
@@ -478,6 +553,17 @@ export class JarScene {
 
   /** Moves the picture up by `fraction` of the view height without changing perspective. Tweened. */
   setFrameShift(fraction: number, animate = true): void {
+    this.shiftWanted = fraction;
+    if (this.shiftHold === null) this.tweenShift(fraction, animate);
+  }
+
+  /** Overrides the frame shift (the boombox and the credits take over the framing); `null` gives it back to the caller's value. */
+  private holdShift(value: number | null): void {
+    this.shiftHold = value;
+    this.tweenShift(value ?? this.shiftWanted, true);
+  }
+
+  private tweenShift(fraction: number, animate: boolean): void {
     this.shiftAbort.abort();
     this.shiftAbort = new AbortController();
     const from = this.frameShift;
@@ -500,6 +586,7 @@ export class JarScene {
     this.abort = new AbortController();
     this.cancelShake();
     this.clearBackLabel();
+    this.cancelSoundAndCredits();
     this.opened = false;
     this.spin = 0;
     this.spinVelocity = 0;
@@ -511,10 +598,13 @@ export class JarScene {
     this.nextNudge = 0;
     this.shiftAbort.abort();
     this.frameShift = 0;
+    this.shiftWanted = 0;
+    this.shiftHold = null;
     this.applyFrameShift();
     this.atClosePose = false;
     this.camera.position.copy(CAMERA_POS);
     this.camera.lookAt(CAMERA_LOOK);
+    this.lookNow.copy(CAMERA_LOOK);
     this.lid.visible = true;
     this.lid.position.set(0, LID_SEAT_Y, 0);
     this.lid.rotation.set(0, 0, 0);
@@ -538,6 +628,8 @@ export class JarScene {
     this.backLabel = null;
     this.presenting = false;
     this.presentYaw = 0;
+    this.labelTiltActive = false;
+    this.labelTilt.x = this.labelTilt.y = 0;
     this.atClosePose = false;
   }
 
@@ -552,7 +644,7 @@ export class JarScene {
 
   private applyJarYaw(): void {
     // Presenting freezes the idle sway at zero, so this is the whole yaw.
-    this.jar.rotation.y = this.spin + this.presentYaw;
+    this.jar.rotation.y = this.spin + this.presentYaw + this.labelTilt.x * LABEL_TILT_YAW;
   }
 
   /**
@@ -572,6 +664,8 @@ export class JarScene {
     this.backLabel = label;
     this.jar.add(label.group);
     this.presenting = true;
+    this.labelTiltActive = !this.reduced;
+    this.controls?.resetTiltBaseline(); // however the phone is held now counts as neutral
     this.sway = 0;
     this.nextNudge = 0;
     this.presentYaw = -BACK_LABEL.facetAngle;
@@ -602,12 +696,15 @@ export class JarScene {
   async revealFront(): Promise<void> {
     if (!this.presenting) return;
     const signal = this.abort.signal;
+    this.labelTiltActive = false; // eases out during the pull-back
     this.setPixelRatio(this.idlePixelRatio());
     const finish = () => {
       this.presenting = false;
       this.presentYaw = 0;
+      this.labelTilt.x = this.labelTilt.y = 0;
       this.atClosePose = false;
       this.backLabel?.setBleed(0);
+      this.jar.rotation.x = 0;
       this.applyJarYaw();
       this.camera.position.copy(CAMERA_POS);
       this.camera.lookAt(CAMERA_LOOK);
@@ -633,6 +730,275 @@ export class JarScene {
       if (!this.frame) this.renderOnce();
     }, signal);
     if (done) finish();
+  }
+
+  // Boombox and credits ------------------------------------------------------------------------
+
+  /** False until the radio model has loaded, or if it failed to. */
+  get hasBoombox(): boolean {
+    return this.boombox !== null;
+  }
+
+  private redraw = (): void => {
+    if (!this.frame) this.renderOnce();
+  };
+
+  private pickBoombox(clientX: number, clientY: number): boolean {
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    if (!rect.width || !rect.height || !this.boombox) return false;
+    this.camera.updateMatrixWorld();
+    const ndc = new Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -(((clientY - rect.top) / rect.height) * 2 - 1));
+    this.raycaster.setFromCamera(ndc, this.camera);
+    return this.boombox.hit(this.raycaster);
+  }
+
+  private applyFocusPose(): void {
+    if (!this.boombox) return;
+    const pose = this.boombox.focusPose(this.camera.fov, this.camera.aspect);
+    this.camera.position.copy(pose.position);
+    this.lookNow.copy(pose.target);
+    this.camera.lookAt(this.lookNow);
+  }
+
+  /** Camera flight from wherever it is. `to` is read every frame, so a resize mid-flight lands on the right pose. */
+  private async fly(to: () => { position: Vector3; target: Vector3 }): Promise<boolean> {
+    this.flightAbort.abort();
+    this.flightAbort = new AbortController();
+    const signal = this.flightAbort.signal;
+    const fromPos = this.camera.position.clone();
+    const fromLook = this.lookNow.clone();
+    const look = new Vector3();
+    const apply = (e: number) => {
+      const goal = to();
+      this.camera.position.lerpVectors(fromPos, goal.position, e);
+      this.camera.lookAt(this.lookNow.copy(look.lerpVectors(fromLook, goal.target, e)));
+      this.redraw();
+    };
+    if (this.reduced) {
+      apply(1);
+      return true;
+    }
+    this.flying = true;
+    const done = await tween(FOCUS_MS, easeInOutCubic, apply, signal);
+    if (done) this.flying = false;
+    return done;
+  }
+
+  private fadeAperture(to: number): void {
+    const from = this.bokehUniforms.aperture.value;
+    if (this.reduced) return this.setAperture(to);
+    void tween(DOF_MS, easeOut, (v) => this.setAperture(lerp(from, to, v)), this.flightAbort.signal);
+  }
+
+  /** Flies the camera to the boombox. Resolves when it is there. Under reduced motion it jumps. */
+  async focusBoombox(): Promise<void> {
+    const boombox = this.boombox;
+    if (!boombox || this.presenting || this.creditsOpen || this.soundFocus) return;
+    this.soundFocus = true;
+    this.cancelShake();
+    this.dragging = false;
+    this.spinVelocity = 0;
+    this.holdShift(0);
+    this.dofBefore = this.bokehUniforms.aperture.value; // an opened note has the jar blurred; the radio should be sharp
+    const flight = this.fly(() => boombox.focusPose(this.camera.fov, this.camera.aspect));
+    this.fadeAperture(0);
+    await flight;
+  }
+
+  /** Flies back to the usual framing (and the current frame shift). Resolves when it is there. */
+  async focusJar(): Promise<void> {
+    if (!this.soundFocus) return;
+    this.holdShift(null);
+    const flight = this.fly(() => ({ position: this.homePosition(), target: CAMERA_LOOK }));
+    this.fadeAperture(this.dofBefore);
+    if (await flight) this.soundFocus = false;
+  }
+
+  /** Where the camera rests: the home pose, plus the parallax drift once the note is open. */
+  private homePosition(): Vector3 {
+    if (!this.parallax) return CAMERA_POS;
+    return new Vector3(CAMERA_POS.x + this.tilt.x * PARALLAX_CAMERA[0], CAMERA_POS.y - this.tilt.y * PARALLAX_CAMERA[1], CAMERA_POS.z);
+  }
+
+  private tipLid(amount: number, signal: AbortSignal): Promise<boolean> {
+    const from = this.lidTip;
+    return tween(CREDITS_LID_MS, easeInOutCubic, (v) => {
+      const t = lerp(from, amount, v);
+      this.lidTip = t;
+      this.lid.position.set(LID_TIP.x * t, LID_SEAT_Y + LID_TIP.y * t, 0);
+      this.lid.rotation.z = LID_TIP.roll * t;
+      this.redraw();
+    }, signal);
+  }
+
+  /** The note's rotation at its open pose: the parallax lean, or flat when parallax is off. */
+  private restRotation(out: Euler): Euler {
+    return this.parallax ? out.set(this.tilt.y * PARALLAX_NOTE[1], this.tilt.x * PARALLAX_NOTE[0], 0) : out.set(0, 0, 0);
+  }
+
+  /** Puts the name note back at its open pose, visible. */
+  private restoreNameNote(): void {
+    const nm = this.note.mesh;
+    this.note.setCrumple(0);
+    nm.position.copy(NOTE_FINAL);
+    nm.scale.setScalar(this.noteFinalScale);
+    this.restRotation(nm.rotation);
+    nm.visible = true;
+    this.noteSwap = false;
+  }
+
+  /**
+   * A paper rises out of the jar mouth (the lid is pushed aside first if `lidOn`), then unfolds and glides to `final`.
+   * Works in the paper's own parent space, which is the same as the world once the jar has settled. False if aborted.
+   */
+  private async paperOut(note: Note, final: Vector3, signal: AbortSignal, lidOn: boolean): Promise<boolean> {
+    const mesh = note.mesh;
+    const finalScale = this.noteFinalScale;
+    const rest = new Euler();
+    note.setCrumple(1);
+    mesh.position.copy(CREDITS_START);
+    mesh.scale.setScalar(1);
+    mesh.rotation.copy(NOTE_PICK_EULER);
+    if (lidOn && !(await this.tipLid(1, signal))) return false;
+    mesh.visible = true;
+    // 1. Rise out of the mouth.
+    if (!(await tween(CREDITS_RISE_MS, easeOut, (v) => {
+      mesh.position.lerpVectors(CREDITS_START, NOTE_TOP, v);
+      this.redraw();
+    }, signal))) return false;
+    // 2. Unfold and come to the camera, like the note does. The lid settles back meanwhile.
+    const lidBack = lidOn ? this.tipLid(0, signal) : Promise.resolve(true);
+    const glided = await tween(CREDITS_GLIDE_MS, linear, (p) => {
+      note.setCrumple(1 - easeInOutCubic(p));
+      const v = easePop(Math.min(p / 0.45, 1));
+      this.restRotation(rest);
+      mesh.position.lerpVectors(NOTE_TOP, final, v);
+      mesh.scale.setScalar(lerp(1, finalScale, v));
+      mesh.rotation.set(lerp(0.4, rest.x, v), lerp(-0.8, rest.y, v), lerp(0.3, rest.z, v));
+      this.redraw();
+    }, signal);
+    return glided && (await lidBack);
+  }
+
+  /** A paper folds up, lifts to the mouth and drops into the jar, hidden. False if aborted. */
+  private async paperIn(note: Note, signal: AbortSignal, lidOn: boolean): Promise<boolean> {
+    const mesh = note.mesh;
+    const fromPos = mesh.position.clone();
+    const fromScale = mesh.scale.x;
+    const fromRot = mesh.rotation.clone();
+    // 1. Fold up and lift to the mouth: the glide, backwards.
+    if (!(await tween(CREDITS_LEAVE_MS, easeInOutCubic, (v) => {
+      note.setCrumple(v);
+      mesh.position.lerpVectors(fromPos, NOTE_TOP, v);
+      mesh.scale.setScalar(lerp(fromScale, 1, v));
+      mesh.rotation.set(lerp(fromRot.x, 0.4, v), lerp(fromRot.y, -0.8, v), lerp(fromRot.z, 0.3, v));
+      this.redraw();
+    }, signal))) return false;
+    if (lidOn && !(await this.tipLid(1, signal))) return false;
+    // 2. Drop in.
+    if (!(await tween(CREDITS_DROP_MS, easeInCubic, (v) => {
+      mesh.position.lerpVectors(NOTE_TOP, CREDITS_START, v);
+      this.redraw();
+    }, signal))) return false;
+    mesh.visible = false;
+    if (lidOn) await this.tipLid(0, signal);
+    this.redraw();
+    return true;
+  }
+
+  /**
+   * Shows the credits as a paper: it rises out of the jar mouth (the lid is pushed aside first if it is on), then
+   * unfolds and glides to the front pose of the note. If the name note is already out, it folds back into the jar
+   * first and the credits take its place. `clearance` is the fraction of the viewport the DOM caption covers from the
+   * bottom; the picture moves up to clear it. Under reduced motion it jumps.
+   */
+  async showCredits(content: { title: string; lines: string[] }, clearance: number): Promise<void> {
+    if (this.creditsOpen || this.presenting || this.soundFocus) return;
+    this.creditsOpen = true;
+    this.creditsSettled = false;
+    this.creditsAbort.abort();
+    this.creditsAbort = new AbortController();
+    const signal = this.creditsAbort.signal;
+    this.cancelShake();
+    this.dragging = false;
+    this.spinVelocity = 0;
+
+    if (!this.creditsNote) {
+      this.creditsNote = createNote();
+      this.creditsNote.setLines(content.title, content.lines);
+      this.creditsNote.mesh.visible = false;
+      this.scene.add(this.creditsNote.mesh);
+      this.extras.push(this.creditsNote);
+    }
+    const note = this.creditsNote;
+    const mesh = note.mesh;
+    this.holdShift(this.noteClearanceShift(clearance));
+
+    if (this.opened) this.noteSwap = true;
+    if (this.reduced) {
+      note.setCrumple(0);
+      mesh.position.copy(NOTE_FINAL);
+      mesh.scale.setScalar(this.noteFinalScale);
+      mesh.rotation.set(0, 0, 0);
+      mesh.visible = true;
+      if (this.opened) this.note.mesh.visible = false;
+      this.creditsSettled = true;
+      this.redraw();
+      return;
+    }
+
+    if (this.opened && !(await this.paperIn(this.note, signal, false))) return;
+    const lidOn = !this.opened && this.lid.visible;
+    if (!(await this.paperOut(note, NOTE_FINAL, signal, lidOn))) return;
+    this.creditsSettled = true;
+  }
+
+  /**
+   * Folds the credits paper and drops it back into the jar; an opened name note then rises out again to its open pose.
+   * Resolves when both are done. Under reduced motion they just switch.
+   */
+  async hideCredits(): Promise<void> {
+    if (!this.creditsOpen) return;
+    this.creditsOpen = false;
+    this.creditsSettled = false;
+    this.creditsAbort.abort();
+    this.creditsAbort = new AbortController();
+    const signal = this.creditsAbort.signal;
+    this.holdShift(null);
+    const note = this.creditsNote;
+    if (!note) return;
+    const mesh = note.mesh;
+    const hide = () => {
+      mesh.visible = false;
+      this.lidTip = 0;
+      this.lid.position.set(0, LID_SEAT_Y, 0);
+      this.lid.rotation.z = 0;
+      if (this.opened) this.restoreNameNote();
+      this.redraw();
+    };
+    if (this.reduced) return hide();
+    const lidOn = !this.opened && this.lid.visible;
+    if (mesh.visible && !(await this.paperIn(note, signal, lidOn))) return;
+    if (!this.opened) return;
+    if (!(await this.paperOut(this.note, NOTE_FINAL, signal, false))) return;
+    this.noteSwap = false;
+    this.redraw();
+  }
+
+  /** Drops any boombox flight and credits paper in flight, for reset. The lid is re-seated by the caller. */
+  private cancelSoundAndCredits(): void {
+    this.flightAbort.abort();
+    this.flying = false;
+    this.soundFocus = false;
+    this.creditsAbort.abort();
+    this.creditsOpen = false;
+    this.creditsSettled = false;
+    this.lidTip = 0;
+    if (this.creditsNote) this.creditsNote.mesh.visible = false;
+    // The name note may be mid-swap: put it back at its open pose (reset then rests it for the next name).
+    this.noteSwap = false;
+    this.note.mesh.visible = true;
+    if (this.opened) this.restoreNameNote();
   }
 
   /** Plays unscrew, pull, unfold. Under reduced motion it jumps to the final state. */
@@ -711,7 +1077,7 @@ export class JarScene {
 
   /** Wobbles the closed jar and jolts the slips at each peak; physics lets them tumble and settle. */
   shake(strength = 1): void {
-    if (this.opened || this.presenting || this.shaking || this.reduced || !this.physics) return;
+    if (this.opened || this.presenting || this.soundFocus || this.creditsOpen || this.shaking || this.reduced || !this.physics) return;
     this.shaking = true;
     const signal = this.shakeAbort.signal;
     let peaks = 0;
@@ -794,7 +1160,11 @@ export class JarScene {
     const wiggle = wiggleT > 0.8 ? Math.sin((wiggleT - 0.8) * Math.PI * 10) * 0.05 * (1 - (wiggleT - 0.8) / 0.2) : 0;
     const idle = !(this.reduced || this.opened || this.presenting || this.dragging || this.shaking || this.spinVelocity);
     this.sway += ((idle ? 1 : 0) - this.sway) * (1 - 0.95 ** frames);
-    this.jar.rotation.y = this.spin + this.presentYaw + this.sway * Math.sin(t * 0.6) * 0.3;
+    const labelEase = 1 - 0.92 ** frames;
+    this.labelTilt.x += ((this.labelTiltActive ? this.tiltTarget.x : 0) - this.labelTilt.x) * labelEase;
+    this.labelTilt.y += ((this.labelTiltActive ? this.tiltTarget.y : 0) - this.labelTilt.y) * labelEase;
+    this.jar.rotation.y = this.spin + this.presentYaw + this.labelTilt.x * LABEL_TILT_YAW + this.sway * Math.sin(t * 0.6) * 0.3;
+    this.jar.rotation.x = this.labelTilt.y * LABEL_TILT_PITCH;
     this.jar.rotation.z = this.sway * wiggle + this.shakeZ;
     this.jar.position.x = this.shakeX;
 
@@ -808,6 +1178,7 @@ export class JarScene {
       this.physics.sync(this.bodyMeshes);
     }
 
+    this.boombox?.update(dt, this.reduced ? 0 : (this.musicLevel?.() ?? 0), this.soundFocus && !this.reduced);
     this.updateParallax(frames);
     this.composer.render();
   };
@@ -817,15 +1188,18 @@ export class JarScene {
     const ease = 1 - 0.92 ** frames;
     this.tilt.x += (this.tiltTarget.x * k - this.tilt.x) * ease;
     this.tilt.y += (this.tiltTarget.y * k - this.tilt.y) * ease;
-    if (!this.parallax) return;
+    if (!this.parallax || this.soundFocus) return;
     const { x, y } = this.tilt;
     this.camera.position.set(CAMERA_POS.x + x * PARALLAX_CAMERA[0], CAMERA_POS.y - y * PARALLAX_CAMERA[1], CAMERA_POS.z);
     this.camera.lookAt(CAMERA_LOOK);
     const nm = this.note.mesh;
-    nm.rotation.set(y * PARALLAX_NOTE[1], x * PARALLAX_NOTE[0], 0);
-    // Keep the note in focus as the camera moves.
-    nm.updateWorldMatrix(true, false);
-    this.bokehUniforms.focus.value = nm.getWorldPosition(new Vector3()).sub(this.camera.position).dot(this.camera.getWorldDirection(new Vector3()));
+    const lean = this.restRotation(this.leanEuler);
+    if (!this.noteSwap) nm.rotation.copy(lean);
+    if (this.creditsSettled && this.creditsNote) this.creditsNote.mesh.rotation.copy(lean);
+    // Keep the note in focus as the camera moves. The focus point is the open pose, whichever paper is there.
+    this.jar.updateWorldMatrix(true, false);
+    const focusAt = this.jar.localToWorld(this.focusPoint.copy(NOTE_FINAL));
+    this.bokehUniforms.focus.value = focusAt.sub(this.camera.position).dot(this.camera.getWorldDirection(new Vector3()));
   }
 
   private renderOnce(): void {
@@ -833,6 +1207,9 @@ export class JarScene {
   }
 
   dispose(): void {
+    this.disposed = true;
+    this.flightAbort.abort();
+    this.creditsAbort.abort();
     this.abort.abort();
     this.shakeAbort.abort();
     this.shiftAbort.abort();

@@ -1,6 +1,6 @@
 import { Mesh, MeshBasicMaterial, PlaneGeometry, RepeatWrapping, SRGBColorSpace, TextureLoader } from 'three';
 import type { Texture } from 'three';
-import tileUrl from '../assets/tablecloth.webp?url';
+import tileUrl from '../assets/images/tablecloth.webp?url';
 
 // World size of the cloth. The far edge sits behind the jar so the backdrop shows above it.
 export const TABLE_WIDTH = 24;
