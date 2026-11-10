@@ -32,7 +32,7 @@ function loadJar(container: HTMLElement): Promise<JarScene | null> {
       const scene = new JarScene();
       scene.mount(container);
       try {
-        await scene.ready; // physics WASM, the settled pile and the backdrop
+        await scene.ready; // the settled pile and the backdrop
       } catch (error) {
         scene.dispose();
         throw error;

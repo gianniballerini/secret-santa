@@ -42,7 +42,7 @@ import type { JarControls } from './jarControls';
 import { createStudioEnvironment } from './studioEnv';
 import { createTable } from './table';
 import backdropUrl from '../assets/images/backdrop-portrait.webp?url';
-import { createJarPhysics, initPhysics, poseAt } from './physics';
+import { createJarPhysics, poseAt } from './physics';
 import type { JarPhysics, Snapshot } from './physics';
 import { stirNote } from './stir';
 import type { Pose } from './stir';
@@ -377,7 +377,6 @@ export class JarScene {
   private async build(): Promise<void> {
     const glassGeo = createJarGeometry();
     const glass = new Mesh(glassGeo, createGlassMaterial());
-    await initPhysics();
     const pile = await createPaperPile();
     const paperMaterial = createPaperMaterial();
     this.slipMeshes = pile.slips.map((slip) => {

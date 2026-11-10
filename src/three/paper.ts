@@ -12,7 +12,7 @@ import {
 } from 'three';
 import { neatFoldSheet, mulberry32, planNeatFolds } from './crumple';
 import { JAR } from './jarGeometry';
-import { createJarPhysics, initPhysics, poseAt } from './physics';
+import { createJarPhysics, poseAt } from './physics';
 
 const SEED = 20241225;
 const PAPER_COUNT = 22;
@@ -125,7 +125,6 @@ export interface PaperPile {
 // The scatter can overlap and float; let it fall and rest in a throwaway static-jar world, then
 // bake the settled poses back into the geometries.
 async function settle(parts: BufferGeometry[]): Promise<void> {
-  await initPhysics();
   const centres = parts.map((geo) => {
     geo.computeBoundingBox();
     const c = geo.boundingBox!.getCenter(new Vector3());

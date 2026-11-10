@@ -43,7 +43,7 @@ The goal is to make a family draw feel like a small event, without asking anyone
 | Build | Vite 8, with a small Pug include plugin in `vite.config.ts` |
 | Markup and styles | Pug, SCSS |
 | Language | TypeScript |
-| 3D | three.js, three-mesh-bvh, Rapier physics (`@dimforge/rapier3d-compat`) |
+| 3D | three.js, three-mesh-bvh, a small built-in paper solver (`src/three/physics.ts`) |
 | Tests | Vitest (`src/**/*.test.ts`) |
 
 ### Structure
