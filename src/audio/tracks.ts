@@ -4,6 +4,10 @@ import webm2 from '../assets/music/background-2.webm?url';
 import m4a2 from '../assets/music/background-2.m4a?url';
 import webm3 from '../assets/music/background-3.webm?url';
 import m4a3 from '../assets/music/background-3.m4a?url';
+import webm4 from '../assets/music/background-4.webm?url';
+import m4a4 from '../assets/music/background-4.m4a?url';
+import webm5 from '../assets/music/background-5.webm?url';
+import m4a5 from '../assets/music/background-5.m4a?url';
 
 export interface Track {
   id: string;
@@ -18,6 +22,8 @@ export const TRACKS: readonly Track[] = [
   { id: 'background-1', label: 'Pista 1', webm: webm1, m4a: m4a1 },
   { id: 'background-2', label: 'Pista 2', webm: webm2, m4a: m4a2 },
   { id: 'background-3', label: 'Pista 3', webm: webm3, m4a: m4a3 },
+  { id: 'background-4', label: 'Pista 4', webm: webm4, m4a: m4a4 },
+  { id: 'background-5', label: 'Pista 5', webm: webm5, m4a: m4a5 },
 ];
 
 /** The track index that is playing, or `null` for silence. */

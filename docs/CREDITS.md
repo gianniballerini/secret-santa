@@ -12,7 +12,7 @@ Shipped as `src/assets/models/boombox.glb`. Changes: scaled and placed in the sc
 
 ## Music
 
-Generated with Suno (`src/assets/music/background-1.*`, re-encoded to Opus/WebM and AAC/M4A for the web).
+Generated with Suno (`src/assets/music/background-1.*` to `background-5.*`, re-encoded to Opus/WebM and AAC/M4A for the web).
 
 ## Icons
 
