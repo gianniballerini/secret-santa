@@ -75,7 +75,9 @@ const LID_EXIT_MS = 650;
 const LID_EXIT_RISE = 4;
 const UNFOLD_MS = 1800;
 const DOF_MS = 500;
-const DOF_APERTURE = 0.005; // blur per unit of depth away from the note
+// Blur per unit of depth away from the note. 0 turns the depth of field off (the bokeh pass is skipped);
+// it softened the note too and cost a full-screen pass. 0.005 was the old look.
+const DOF_APERTURE = 0;
 const DOF_MAX_BLUR = 0.005; // cap, as a fraction of the frame
 
 const TAU = Math.PI * 2;
@@ -579,8 +581,8 @@ export class JarScene {
     void tween(SHIFT_MS, easeInOutCubic, (v) => apply(lerp(from, fraction, v)), this.shiftAbort.signal);
   }
 
-  /** Return to the closed jar, showing a new name. Safe to call repeatedly. */
-  reset(name: string): void {
+  /** Return to the closed jar, showing a new name (and its picture, if `imageUrl` loads). Safe to call repeatedly. */
+  reset(name: string, imageUrl?: string): void {
     this.abort.abort();
     this.abort = new AbortController();
     this.cancelShake();
@@ -608,7 +610,7 @@ export class JarScene {
     this.lid.position.set(0, LID_SEAT_Y, 0);
     this.lid.rotation.set(0, 0, 0);
     this.setPixelRatio(this.idlePixelRatio());
-    this.note.setName(name);
+    this.note.setName(name, imageUrl);
     this.note.setCrumple(1);
     this.applyNoteRest();
     this.setAperture(0);

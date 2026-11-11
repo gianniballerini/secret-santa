@@ -47,6 +47,14 @@ function loadJar(container: HTMLElement): Promise<JarScene | null> {
   return jarPromise;
 }
 
+/**
+ * The recipient's picture in `public/avatars`, or '' when the token names none. The token is
+ * user-controlled, so only a plain file name gets through (no paths, no URLs).
+ */
+function avatarUrl(file: string): string {
+  return /^[a-z0-9][a-z0-9-]*\.(jpg|jpeg|png|webp)$/.test(file) ? `avatars/${file}` : '';
+}
+
 /** The copy for the jar's back label. The giver's name is the only thing that varies. */
 function backLabelContent(giver: string): BackLabelContent {
   const copy = themeContent.intro;
@@ -112,7 +120,8 @@ export function showReveal(payload: TokenPayload): void {
   stage.className = 'stage';
   stage.setAttribute('aria-busy', 'true');
   setInteractive(true);
-  jar?.reset(payload.r);
+  const photo = avatarUrl(payload.a);
+  jar?.reset(payload.r, photo);
 
   // Every link starts on the intro, with the jar out of reach until it leaves.
   // The DOM copy always exists: it is what screen readers get, and what shows without WebGL.
@@ -278,7 +287,7 @@ export function showReveal(payload: TokenPayload): void {
       return;
     }
     mode = 'webgl';
-    scene.reset(payload.r);
+    scene.reset(payload.r, photo);
     try {
       await scene.showBackLabel(backLabelContent(payload.g));
     } catch {
