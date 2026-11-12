@@ -1,11 +1,20 @@
-import { draw } from '../domain/draw';
+import { draw, DrawImpossibleError } from '../domain/draw';
 import { buildLinksMarkdown, LINKS_FILE_NAME, type GiverLink } from '../domain/linksFile';
-import { defaultAvatar, type Participant } from '../domain/participant';
+import { sameGroup, slugify, type Participant } from '../domain/participant';
 import { encodeToken } from '../domain/token';
+import { avatarFor, avatarUrl } from './avatar';
 import { byId, el } from './dom';
 
 const STORAGE_KEY = 'secret-santa:participants';
 const MIN_PARTICIPANTS = 3;
+const MAX_NAME_LENGTH = 40;
+
+/** A participant with the avatar matched to the name and the group kept only when it has text. */
+function makeParticipant(name: string, group = ''): Participant {
+  const trimmed = name.trim();
+  const g = group.trim();
+  return g ? { name: trimmed, avatar: avatarFor(trimmed), group: g } : { name: trimmed, avatar: avatarFor(trimmed) };
+}
 
 function loadParticipants(): Participant[] {
   try {
@@ -14,10 +23,10 @@ function loadParticipants(): Participant[] {
     const data: unknown = JSON.parse(raw);
     if (!Array.isArray(data)) return [];
     return data.flatMap((item): Participant[] => {
-      const { name, avatar } = (item ?? {}) as Record<string, unknown>;
+      const { name, group } = (item ?? {}) as Record<string, unknown>;
       if (typeof name !== 'string' || !name.trim()) return [];
-      // Avatars are gone from the UI, but the token still carries one; keep what was saved or use the default.
-      return [{ name: name.trim(), avatar: typeof avatar === 'string' ? avatar.trim() : defaultAvatar(name) }];
+      // The avatar always follows the name, so pictures added later are picked up.
+      return [makeParticipant(name, typeof group === 'string' ? group : '')];
     });
   } catch {
     return [];
@@ -69,11 +78,14 @@ export function initOrganizer(): void {
 
   const form = byId<HTMLFormElement>('add-form');
   const nameInput = byId<HTMLInputElement>('name-input');
+  const groupInput = byId<HTMLInputElement>('group-input');
+  const groupOptions = byId('group-options');
   const formError = byId('form-error');
   const list = byId('participant-list');
   const emptyState = byId('empty-state');
   const drawBtn = byId<HTMLButtonElement>('draw-btn');
   const drawHint = byId('draw-hint');
+  const drawError = byId('draw-error');
   const results = byId('results');
   const resultsList = byId('results-list');
   const redrawBtn = byId<HTMLButtonElement>('redraw-btn');
@@ -105,6 +117,15 @@ export function initOrganizer(): void {
     renderList();
   }
 
+  /** The participant's picture when one exists in `public/avatars`; it removes itself if it fails to load. */
+  function renderAvatar(p: Participant): HTMLElement | null {
+    const src = avatarUrl(p.avatar);
+    if (!src) return null;
+    const img = el('img', { class: 'row__avatar', src, alt: '', width: '40', height: '40', loading: 'lazy', decoding: 'async' });
+    img.addEventListener('error', () => img.remove(), { once: true });
+    return img;
+  }
+
   function renderRow(p: Participant, index: number): HTMLElement {
     if (index === editing) return renderEditRow(p, index);
     const actions = el('div', { class: 'row__actions' });
@@ -122,12 +143,24 @@ export function initOrganizer(): void {
       changed();
     });
     actions.append(editBtn, removeBtn);
-    return el('li', { class: 'row' }, el('div', { class: 'row__main' }, el('span', { class: 'row__name' }, p.name)), actions);
+    const avatar = renderAvatar(p);
+    const main = el('div', { class: 'row__main' }, el('span', { class: 'row__name' }, p.name));
+    if (p.group) main.append(el('span', { class: 'row__group' }, p.group));
+    return el('li', { class: 'row' }, ...(avatar ? [avatar] : []), main, actions);
   }
 
   function renderEditRow(p: Participant, index: number): HTMLElement {
     const nameField = el('input', { class: 'input', type: 'text', maxlength: '40', 'aria-label': 'Nombre' });
     nameField.value = p.name;
+    const groupField = el('input', {
+      class: 'input',
+      type: 'text',
+      maxlength: '40',
+      list: 'group-options',
+      placeholder: 'Grupo (opcional)',
+      'aria-label': 'Grupo (opcional)',
+    });
+    groupField.value = p.group ?? '';
     const error = el('p', { class: 'field__error', role: 'alert', hidden: true });
     const save = el('button', { type: 'submit', class: 'btn btn--primary btn--sm' }, 'Guardá');
     const cancel = el('button', { type: 'button', class: 'btn btn--ghost btn--sm' }, 'Cancelar');
@@ -142,6 +175,7 @@ export function initOrganizer(): void {
         'form',
         { class: 'row__edit', novalidate: true },
         nameField,
+        groupField,
         error,
         el('div', { class: 'row__actions' }, save, cancel),
       ),
@@ -155,8 +189,7 @@ export function initOrganizer(): void {
         nameField.focus();
         return;
       }
-      const name = nameField.value.trim();
-      participants[index] = { name, avatar: defaultAvatar(name) };
+      participants[index] = makeParticipant(nameField.value, groupField.value);
       editing = -1;
       changed();
     });
@@ -164,8 +197,20 @@ export function initOrganizer(): void {
     return row;
   }
 
+  /** Offers the groups already in use, so the same spelling is reused. */
+  function renderGroupOptions(): void {
+    const groups = new Map<string, string>();
+    for (const { group } of participants) {
+      const key = slugify(group ?? '');
+      if (key && !groups.has(key)) groups.set(key, group!);
+    }
+    groupOptions.replaceChildren(...[...groups.values()].map((value) => el('option', { value })));
+  }
+
   function renderList(): void {
     list.replaceChildren(...participants.map(renderRow));
+    renderGroupOptions();
+    drawError.hidden = true;
     emptyState.hidden = participants.length > 0;
     const ready = participants.length >= MIN_PARTICIPANTS;
     drawBtn.disabled = !ready;
@@ -173,7 +218,19 @@ export function initOrganizer(): void {
   }
 
   function renderResults(): void {
-    const pairs = draw(participants);
+    let pairs;
+    try {
+      pairs = draw(participants, sameGroup);
+    } catch (err) {
+      if (!(err instanceof DrawImpossibleError)) throw err;
+      drawError.textContent = err.message;
+      drawError.hidden = false;
+      results.hidden = true;
+      resultsList.replaceChildren();
+      drawnLinks = [];
+      return;
+    }
+    drawError.hidden = true;
     drawnLinks = pairs.map(({ giver, recipient }) => ({ name: giver.name, link: buildLink(giver, recipient) }));
     resultsList.replaceChildren(
       ...drawnLinks.map(({ name, link }) => {
@@ -218,16 +275,29 @@ export function initOrganizer(): void {
 
   form.addEventListener('submit', (e) => {
     e.preventDefault();
-    const message = validateName(nameInput.value);
-    showFormError(message);
-    if (message) {
+    const names = nameInput.value.split(',').map((n) => n.trim()).filter(Boolean);
+    if (!names.length) {
+      showFormError(validateName(''));
       nameInput.focus();
       return;
     }
-    const name = nameInput.value.trim();
-    participants.push({ name, avatar: defaultAvatar(name) });
-    form.reset();
-    changed();
+    // Add every valid name; the rejected ones stay in the input with the first error shown.
+    const rejected: string[] = [];
+    let firstError = '';
+    for (const name of names) {
+      const message = name.length > MAX_NAME_LENGTH ? `"${name}" es muy largo (máximo ${MAX_NAME_LENGTH}).` : validateName(name);
+      if (message) {
+        rejected.push(name);
+        firstError ||= message;
+        continue;
+      }
+      participants.push(makeParticipant(name, groupInput.value));
+    }
+    if (rejected.length < names.length) changed();
+    nameInput.value = rejected.join(', ');
+    // The group belongs to this batch; keep it only while some of its names still need fixing.
+    if (!rejected.length) groupInput.value = '';
+    showFormError(firstError);
     nameInput.focus();
   });
 

@@ -10,9 +10,14 @@ main#app
       h2#add-title.card__title ¿Quién participa?
       form#add-form.add(novalidate)
         .field
-          label.field__label(for="name-input") Nombre
-          input#name-input.input(type="text" autocomplete="off" maxlength="40" placeholder="p. ej. María")
+          label.field__label(for="name-input") Nombre (o varios, separados por coma)
+          input#name-input.input(type="text" autocomplete="off" placeholder="p. ej. María, Juan, Sofi")
         p#form-error.field__error(role="alert" hidden)
+        .field
+          label.field__label(for="group-input") Grupo (opcional)
+          input#group-input.input(type="text" autocomplete="off" maxlength="40" list="group-options" placeholder="p. ej. Familia Pérez" aria-describedby="group-help")
+          p#group-help.muted.field__help Las personas del mismo grupo (parejas, familias) nunca se tocan entre sí.
+        datalist#group-options
         button.btn.btn--primary.btn--block(type="submit") Agregá
 
       ul#participant-list.list(aria-label="Participantes")
@@ -21,6 +26,7 @@ main#app
       .actions
         button#draw-btn.btn.btn--gold.btn--block(type="button" disabled) Sorteá
         p#draw-hint.muted Agregá al menos 3 personas para sortear.
+        p#draw-error.field__error(role="alert" hidden)
 
     section#results.card(hidden aria-labelledby="results-title")
       h2#results-title.card__title Enlaces privados

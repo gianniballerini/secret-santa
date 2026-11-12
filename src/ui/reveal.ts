@@ -2,6 +2,7 @@ import type { TokenPayload } from '../domain/token';
 import type { BackLabelContent } from '../three/jarBackLabel';
 import type { JarScene } from '../three/JarScene';
 import { music } from '../audio/music';
+import { avatarUrl } from './avatar';
 import { byId, el } from './dom';
 import { dismissCredits, isSoundBusy, setSceneProvider } from './soundUi';
 import { themeContent } from './themeContent';
@@ -47,13 +48,6 @@ function loadJar(container: HTMLElement): Promise<JarScene | null> {
   return jarPromise;
 }
 
-/**
- * The recipient's picture in `public/avatars`, or '' when the token names none. The token is
- * user-controlled, so only a plain file name gets through (no paths, no URLs).
- */
-function avatarUrl(file: string): string {
-  return /^[a-z0-9][a-z0-9-]*\.(jpg|jpeg|png|webp)$/.test(file) ? `avatars/${file}` : '';
-}
 
 /** The copy for the jar's back label. The giver's name is the only thing that varies. */
 function backLabelContent(giver: string): BackLabelContent {

@@ -2,6 +2,14 @@ export interface Participant {
   name: string;
   /** Avatar file name inside public/avatars, e.g. "maria.jpg". */
   avatar: string;
+  /** Optional exclusion group (a couple, a family): people in the same group never draw each other. */
+  group?: string;
+}
+
+/** True when both have a group and it is the same one, ignoring case and accents. */
+export function sameGroup(a: Pick<Participant, 'group'>, b: Pick<Participant, 'group'>): boolean {
+  const ga = slugify(a.group ?? '');
+  return ga !== '' && ga === slugify(b.group ?? '');
 }
 
 /** Strip accents, lowercase, collapse non-alphanumerics into hyphens. */
@@ -17,6 +25,20 @@ export function slugify(name: string): string {
 export function defaultAvatar(name: string): string {
   const slug = slugify(name);
   return slug ? `${slug}.jpg` : '';
+}
+
+/**
+ * The avatar for a name, picked from the files that exist: the whole name first ("sofi-fazio.jpg"),
+ * then each word in order ("sofi.jpg", "fazio.jpg"). With no match it is the default file name, which
+ * the reveal replaces with the mystery silhouette.
+ */
+export function matchAvatar(name: string, available: readonly string[]): string {
+  const files = new Set(available);
+  const words = name.trim().split(/\s+/).map(slugify).filter(Boolean);
+  for (const slug of [slugify(name), ...words]) {
+    if (slug && files.has(`${slug}.jpg`)) return `${slug}.jpg`;
+  }
+  return defaultAvatar(name);
 }
 
 export function initials(name: string): string {

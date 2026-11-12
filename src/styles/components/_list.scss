@@ -24,9 +24,32 @@
     flex-direction: column;
   }
 
+  &__avatar {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    object-position: top;
+    border: 2px solid var(--line);
+    background: var(--line);
+  }
+
   &__name {
     font-weight: 800;
     color: var(--ink);
+    overflow-wrap: anywhere;
+  }
+
+  &__group {
+    align-self: flex-start;
+    margin-top: var(--space-1);
+    padding: 2px var(--space-2);
+    border-radius: 999px;
+    background: var(--cream-edge);
+    color: var(--ink-muted);
+    font-size: var(--text-xs);
+    font-weight: 700;
     overflow-wrap: anywhere;
   }
 

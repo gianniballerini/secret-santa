@@ -1,3 +1,4 @@
+import { readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
@@ -29,8 +30,12 @@ function pugInclude(): Plugin {
   };
 }
 
+/** The avatar files the site ships, so the organizer can match names to pictures (restart dev to pick up new ones). */
+const avatars = readdirSync(resolve(import.meta.dirname, 'public/avatars')).filter((f) => f.endsWith('.jpg'));
+
 export default defineConfig({
   base: './',
+  define: { __AVATARS__: JSON.stringify(avatars) },
   server: { host: true, port: 1234 },
   plugins: [pugInclude()],
   test: { include: ['src/**/*.test.ts'] },

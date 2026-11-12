@@ -9,6 +9,11 @@
     color: var(--ink);
   }
 
+  &__help {
+    margin: 0;
+    font-size: var(--text-xs);
+  }
+
   &__error {
     color: var(--error);
     font-size: var(--text-sm);
