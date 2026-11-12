@@ -2,6 +2,7 @@ import type { TokenPayload } from '../domain/token';
 import type { BackLabelContent } from '../three/jarBackLabel';
 import type { JarScene } from '../three/JarScene';
 import { music } from '../audio/music';
+import { playPaper } from '../audio/sfx';
 import { avatarUrl } from './avatar';
 import { byId, el } from './dom';
 import { dismissCredits, isSoundBusy, setSceneProvider } from './soundUi';
@@ -42,6 +43,7 @@ function loadJar(container: HTMLElement): Promise<JarScene | null> {
       scene.onBoomboxTap = () => music.cycle();
       scene.setMusicLevel(() => music.level());
       scene.onCreditsDismiss = dismissCredits;
+      scene.onPaperOpen = playPaper;
       return scene;
     })
     .catch(() => null); // No WebGL or the chunk failed: use the CSS paper note.
@@ -231,6 +233,7 @@ export function showReveal(payload: TokenPayload): void {
     } else {
       paperName.textContent = payload.r;
       paper.classList.add('is-open');
+      playPaper();
       await wait(reduced() ? 0 : FALLBACK_OPEN_MS);
     }
     if (current !== session) return;

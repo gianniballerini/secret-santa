@@ -227,22 +227,45 @@ function setLoading(value: boolean): void {
   emit();
 }
 
+/** The live audio context for sound effects, or `null` before the first gesture, while muted or without Web Audio. */
+export function effectsContext(): AudioContext | null {
+  return started && !muted && context?.state === 'running' ? context : null;
+}
+
+/** True once the browser has really let the audio run (context resumed and the wanted track not blocked). */
+function unlocked(): boolean {
+  return (!context || context.state === 'running') && (wanted() === null || (playing !== null && !playing.paused));
+}
+
+/** Retries inside a later gesture what the browser refused in an earlier one. */
+function unstick(): void {
+  if (document.hidden) return;
+  void context?.resume().catch(() => {});
+  if (playing?.paused && wanted() !== null) {
+    playing = null; // play() was rejected: start it again so it also fades in
+    apply(false);
+  }
+}
+
+// A touch pointerdown is not a user activation on Android Chrome and iOS Safari (pointerup, touchend and click are),
+// so every one of these is tried until the audio actually runs.
+const GESTURES = ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'] as const;
+
 /** Starts the music on the first gesture (capture phase, so every view is covered) and pauses it while the tab is hidden. */
 export function initMusic(): void {
   const first = (e: Event) => {
-    if (started) return cleanup();
-    // The sound button starts the music itself, so its first tap does not mute it.
-    if (e.target instanceof Element && e.target.closest('[data-sound-control]')) return;
-    cleanup();
-    ensureStarted();
-    apply(false);
+    if (!started) {
+      // The sound button starts the music itself, so its first tap does not mute it.
+      if (e.target instanceof Element && e.target.closest('[data-sound-control]')) return;
+      ensureStarted();
+      apply(false);
+    } else {
+      unstick();
+    }
+    if (unlocked()) cleanup();
   };
-  const cleanup = () => {
-    document.removeEventListener('pointerdown', first, true);
-    document.removeEventListener('keydown', first, true);
-  };
-  document.addEventListener('pointerdown', first, true);
-  document.addEventListener('keydown', first, true);
+  const cleanup = () => GESTURES.forEach((type) => document.removeEventListener(type, first, true));
+  GESTURES.forEach((type) => document.addEventListener(type, first, true));
   document.addEventListener('visibilitychange', () => {
     if (!started) return;
     if (document.hidden) {

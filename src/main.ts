@@ -1,6 +1,7 @@
 import './styles/main.scss';
 import { decodeToken } from './domain/token';
 import { initMusic } from './audio/music';
+import { initEffects } from './audio/sfx';
 import { byId } from './ui/dom';
 import { initOrganizer } from './ui/organizer';
 import { showReveal } from './ui/reveal';
@@ -33,6 +34,7 @@ function route(): void {
 
 initOrganizer();
 initMusic();
+initEffects();
 initSoundUi();
 window.addEventListener('hashchange', route);
 route();

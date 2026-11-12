@@ -231,6 +231,8 @@ export class JarScene {
   onBoomboxTap: (() => void) | null = null;
   /** Called when a tap lands while the credits paper is up, so the UI can close it. */
   onCreditsDismiss: (() => void) | null = null;
+  /** Called as a paper (the name note or the credits) starts to unfold, so the UI can play its sound. */
+  onPaperOpen: (() => void) | null = null;
   private extras: Array<{ dispose(): void }> = [];
   /** Resolves once physics and the paper pile are built. */
   ready: Promise<void> = Promise.resolve();
@@ -869,6 +871,7 @@ export class JarScene {
     }, signal))) return false;
     // 2. Unfold and come to the camera, like the note does. The lid settles back meanwhile.
     const lidBack = lidOn ? this.tipLid(0, signal) : Promise.resolve(true);
+    this.onPaperOpen?.();
     const glided = await tween(CREDITS_GLIDE_MS, linear, (p) => {
       note.setCrumple(1 - easeInOutCubic(p));
       const v = easePop(Math.min(p / 0.45, 1));
@@ -1026,6 +1029,7 @@ export class JarScene {
       this.setAperture(DOF_APERTURE);
       this.setPixelRatio(Math.min(window.devicePixelRatio, MAX_PIXEL_RATIO));
       this.renderOnce();
+      this.onPaperOpen?.();
       return;
     }
 
@@ -1054,6 +1058,7 @@ export class JarScene {
 
     // 3. Come to the camera while unfolding slowly, one fold at a time.
     const finalScale = this.noteFinalScale;
+    this.onPaperOpen?.();
     await tween(UNFOLD_MS, linear, (p) => {
       note.setCrumple(1 - easeInOutCubic(p));
       const v = easePop(Math.min(p / 0.45, 1)); // travel finishes early so the unfold reads facing the camera
