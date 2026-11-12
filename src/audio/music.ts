@@ -11,7 +11,8 @@ const FALLBACK_BPM = 100; // the radio's pulse when there is no analyser
 
 const saved = readSaved();
 let track = saved.track; // the selected track; kept while muted so unmuting resumes it
-let muted = saved.muted;
+// A saved mute only lasts for its visit: every load starts on, so the first gesture plays music.
+let muted = TRACKS.length === 0;
 let started = false; // a first gesture has created the audio graph
 let context: AudioContext | null = null;
 let gain: GainNode | null = null;
